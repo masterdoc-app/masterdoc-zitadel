@@ -1,0 +1,103 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "deploy/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-zitadel-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REMOTE_PATH: /opt/masterdoc-zitadel
+
+jobs:
+  ci-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform fmt + validate
+        working-directory: terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false
+          terraform validate
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Unit tests
+        working-directory: verify
+        run: ./gradlew test --no-daemon
+
+  deploy:
+    name: Deploy Compose to VPS
+    needs: ci-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify deploy secrets
+        env:
+          HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.ZITADEL_DEPLOY_USER }}
+          KEY: ${{ secrets.ZITADEL_SSH_PRIVATE_KEY }}
+        run: |
+          test -n "$HOST" || { echo "Add secret ZITADEL_DEPLOY_HOST"; exit 1; }
+          test -n "$USER_NAME" || { echo "Add secret ZITADEL_DEPLOY_USER"; exit 1; }
+          test -n "$KEY" || { echo "Add secret ZITADEL_SSH_PRIVATE_KEY"; exit 1; }
+
+      - name: Load SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ZITADEL_SSH_PRIVATE_KEY }}
+          HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Rsync deploy files
+        env:
+          HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.ZITADEL_DEPLOY_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
+            "${USER_NAME}@${HOST}" "mkdir -p ${REMOTE_PATH}"
+          rsync -avz --delete \
+            -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            deploy/ "${USER_NAME}@${HOST}:${REMOTE_PATH}/"
+
+      - name: Compose up
+        env:
+          HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.ZITADEL_DEPLOY_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes "${USER_NAME}@${HOST}" bash -s <<EOF
+          set -euo pipefail
+          test -f /etc/masterdoc-zitadel/.env || {
+            echo "Missing /etc/masterdoc-zitadel/.env on VPS — create from deploy/.env.example first"
+            exit 1
+          }
+          ln -sfn /etc/masterdoc-zitadel/.env ${REMOTE_PATH}/.env
+          cd ${REMOTE_PATH}
+          docker compose --env-file .env \
+            -f docker-compose.yml \
+            -f docker-compose.mode-external-tls.yml \
+            up -d --wait
+          EOF

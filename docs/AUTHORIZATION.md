@@ -62,7 +62,9 @@
 
 ## Секреты и хост
 
-IP VPS, SSH, PAT, DB passwords, `ZITADEL_MASTERKEY` — **только** в секретах (локальный env / GitHub Actions secrets / `/etc/…` на сервере). В git — плейсхолдеры. Имена: см. [RUNBOOK.md](RUNBOOK.md).
+IP VPS, SSH, PAT, DB passwords, `ZITADEL_MASTERKEY` — **только** в секретах (GitHub Actions + `/etc/…` на VPS). В git — плейсхолдеры.
+
+**Деплой Compose — только из CI** (не с ноутбука). См. [SECRETS.md](SECRETS.md), [RUNBOOK.md](RUNBOOK.md).
 
 ## Артефакты в репо
 

@@ -7,7 +7,8 @@ Self-host **Zitadel** для Masterdoc TOiR на инфраструктуре в
 |--|--|
 | Канон auth | [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) |
 | Эксплуатация | [docs/RUNBOOK.md](docs/RUNBOOK.md) |
-| Deploy | [deploy/](deploy/) |
+| Secrets | [docs/SECRETS.md](docs/SECRETS.md) |
+| Deploy | [deploy/](deploy/) — **только CI** |
 | Platform IaC | [terraform/](terraform/) |
 | Invariants | [verify/](verify/) |
 
@@ -18,7 +19,10 @@ Self-host **Zitadel** для Masterdoc TOiR на инфраструктуре в
 1. `terraform fmt -check` + `terraform validate`
 2. `./gradlew test` в `verify/` (unit, без живого IdP)
 
+**Деплой:** workflow [Deploy](.github/workflows/deploy.yml) — только GitHub Actions (`master` / `workflow_dispatch`). С ноутбука не деплоим.
+
 ## Secrets
 
-Не коммить IP, PAT, SSH keys, DB passwords, masterkey.  
-Имена и куда класть — [docs/RUNBOOK.md](docs/RUNBOOK.md) §0.
+IP, SSH, PAT, DB passwords, masterkey — не в git.  
+Класть в GitHub Actions secrets (+ `/etc/…/.env` на VPS для Compose).  
+Локальный env для деплоя не нужен — [docs/SECRETS.md](docs/SECRETS.md).
