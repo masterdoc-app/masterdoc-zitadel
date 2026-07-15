@@ -62,9 +62,9 @@
 
 ## Секреты и хост
 
-IP VPS, SSH, PAT, DB passwords, `ZITADEL_MASTERKEY` — **только** в секретах (GitHub Actions + `/etc/…` на VPS). В git — плейсхолдеры.
+IP VPS, SSH, domain, PAT, DB passwords, `ZITADEL_MASTERKEY` — **только GitHub Secrets**. CI материализует `.env` на VPS при деплое (сервер может смениться).
 
-**Деплой Compose — только из CI** (не с ноутбука). См. [SECRETS.md](SECRETS.md), [RUNBOOK.md](RUNBOOK.md).
+**Деплой Compose — только из CI.** См. [SECRETS.md](SECRETS.md), [RUNBOOK.md](RUNBOOK.md).
 
 ## Артефакты в репо
 

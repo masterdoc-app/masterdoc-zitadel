@@ -1,84 +1,55 @@
 # RUNBOOK — self-host Zitadel (РФ)
 
-Все чувствительные значения — в секретах. В командах ниже только **имена** переменных.
+Все чувствительные значения — в **GitHub Secrets**. Сервер может смениться: меняешь `ZITADEL_DEPLOY_HOST` и гонишь Deploy заново.
 
 ## Политика деплоя
 
-**Деплой Compose на VPS — только из CI** (push в `master` после зелёных проверок, либо `workflow_dispatch`).
+- Compose на VPS — **только CI** ([`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)).
+- `.env` **собирается в CI из secrets** и копируется на VPS (`/etc/masterdoc-zitadel/.env`).
+- Локальный env не нужен.
+- Unit-тесты на PR secrets не используют.
 
-- Не деплоим с ноутбука (`ssh` / `rsync` / `docker compose` локально — не рабочий процесс).
-- Локальный `~/.config/masterdoc-zitadel/env` **не требуется**.
-- Секреты деплоя — только GitHub Actions secrets (см. [SECRETS.md](SECRETS.md)).
+## 0. Секреты
 
-Unit-тесты на каждом PR **не** используют deploy secrets.
+Список и генерация: [SECRETS.md](SECRETS.md).
 
-## 0. Секреты (до первого деплоя)
+Обязательно до Deploy: host, user, SSH key, domain, masterkey (32 chars), postgres password.
 
-### GitHub Actions secrets
-
-Settings → Secrets and variables → Actions — таблица в [SECRETS.md](SECRETS.md).
-
-### На VPS (`/etc/masterdoc-zitadel/.env`, `chmod 600`)
-
-Создай **один раз** на сервере (CI его не перезаписывает):
-
-| Переменная | Примечание |
-|------------|------------|
-| `ZITADEL_DOMAIN` | FQDN без схемы |
-| `ZITADEL_MASTERKEY` | ровно 32 символа, generate once, backup offline |
-| `POSTGRES_ADMIN_PASSWORD` | сильный пароль |
-| `ZITADEL_DATABASE_POSTGRES_DSN` | с тем же паролем |
-| прочие | из [`deploy/.env.example`](../deploy/.env.example) |
-
-```bash
-tr -dc A-Za-z0-9 </dev/urandom | head -c 32
-```
+**Masterkey:** один раз сгенерировал → в secret → не ротируй без миграции данных (потеряешь доступ к encrypted-at-rest).
 
 ## 1. DNS и TLS
 
-1. A-запись `${ZITADEL_DOMAIN}` → хост из `ZITADEL_DEPLOY_HOST`.
-2. TLS: nginx перед Traefik (external-tls overlay) или Let's Encrypt — см. [`deploy/nginx.example.conf`](../deploy/nginx.example.conf) и upstream docs.
+1. A-запись `${ZITADEL_DOMAIN}` → текущий `ZITADEL_DEPLOY_HOST`.
+2. TLS: nginx перед Traefik или Let's Encrypt — [`deploy/nginx.example.conf`](../deploy/nginx.example.conf).
 
-`ZITADEL_DOMAIN` / external port / `EXTERNALSECURE` должны совпадать с публичным URL.
+## 2. Деплой
 
-## 2. Деплой Compose (CI)
+Actions → **Deploy** → Run workflow (или push в `deploy/**`).
 
-Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
+CI: verify secrets → rsync `deploy/` → записать `.env` из secrets → `docker compose up -d --wait`.
 
-- Триггер: push в `master` (после CI) или ручной `workflow_dispatch`.
-- Шаги: rsync `deploy/` → `/opt/masterdoc-zitadel/` → `docker compose … up -d --wait` по SSH.
-- `.env` на сервере: symlink `/opt/masterdoc-zitadel/.env` → `/etc/masterdoc-zitadel/.env`.
+Первый admin: Console; смени пароль.
 
-Первый admin: Console after first start; смени дефолтный пароль.
+## 3. Смена VPS
 
-## 3. Machine user + PAT (для Terraform)
+1. Подними Docker на новом хосте, перенеси volume Postgres при необходимости.
+2. Обнови secret `ZITADEL_DEPLOY_HOST` (и DNS).
+3. Запусти Deploy.
+4. Masterkey / postgres password в secrets **те же**, если данные те же.
 
-В Console:
+## 4. Machine user + PAT
 
-1. Service User → `terraform-masterdoc`.
-2. Managers → Org Owner (bootstrap; потом сузить).
-3. PAT → только в GitHub secret `ZITADEL_TOKEN` (не в чат).
-4. `ZITADEL_ORG_ID` → secret.
+Console → service user `terraform-masterdoc` → PAT → secrets `ZITADEL_TOKEN` / `ZITADEL_ORG_ID`.
 
-## 4. Terraform platform
+## 5. Terraform platform
 
-Пока: `terraform apply` — вручную с runner'а или позже отдельный CI job / `workflow_dispatch` с secrets `ZITADEL_*` и remote state.  
-Не путать с деплоем Compose: platform apply — после того как IdP уже поднят CI.
+Отдельный apply (позже CI); secrets `ZITADEL_DOMAIN` / `TOKEN` / `ORG_ID`.
 
-Создаёт: project `masterdoc-toir`, 5 roles, OIDC native + web, login policy (no self-signup).
+## 6. Verify / invite smoke
 
-## 5. Verify
-
-- Unit: каждый PR/push в CI (`./gradlew test`).
-- Live: opt-in (`./gradlew liveTest`) — не в default CI.
-
-## 6. Invite smoke (вручную в Console)
-
-1. Organization клиента / demo.
-2. Invite с ролью `engineer`.
-3. JWT: `sub`, org, roles.
+Unit в CI; live и invite — по Console / opt-in.
 
 ## 7. Бэкапы
 
-- Dump Postgres volume `postgres-data`.
-- Offline копия `ZITADEL_MASTERKEY`.
+- Dump Postgres volume.
+- Offline копия `ZITADEL_MASTERKEY` (из password manager / того же secret backup).

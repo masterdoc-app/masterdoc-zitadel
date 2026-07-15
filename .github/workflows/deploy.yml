@@ -14,6 +14,7 @@ concurrency:
 
 env:
   REMOTE_PATH: /opt/masterdoc-zitadel
+  REMOTE_ENV: /etc/masterdoc-zitadel/.env
 
 jobs:
   ci-gate:
@@ -55,10 +56,17 @@ jobs:
           HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
           USER_NAME: ${{ secrets.ZITADEL_DEPLOY_USER }}
           KEY: ${{ secrets.ZITADEL_SSH_PRIVATE_KEY }}
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          MASTERKEY: ${{ secrets.ZITADEL_MASTERKEY }}
+          PG_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
           test -n "$HOST" || { echo "Add secret ZITADEL_DEPLOY_HOST"; exit 1; }
           test -n "$USER_NAME" || { echo "Add secret ZITADEL_DEPLOY_USER"; exit 1; }
           test -n "$KEY" || { echo "Add secret ZITADEL_SSH_PRIVATE_KEY"; exit 1; }
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$MASTERKEY" || { echo "Add secret ZITADEL_MASTERKEY"; exit 1; }
+          test "${#MASTERKEY}" -eq 32 || { echo "ZITADEL_MASTERKEY must be exactly 32 characters"; exit 1; }
+          test -n "$PG_PASSWORD" || { echo "Add secret POSTGRES_ADMIN_PASSWORD"; exit 1; }
 
       - name: Load SSH key
         env:
@@ -70,31 +78,67 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
 
+      - name: Build .env from secrets
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_MASTERKEY: ${{ secrets.ZITADEL_MASTERKEY }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          python3 <<'PY'
+          import os
+          from pathlib import Path
+          from urllib.parse import quote
+
+          domain = os.environ["ZITADEL_DOMAIN"]
+          masterkey = os.environ["ZITADEL_MASTERKEY"]
+          password = os.environ["POSTGRES_ADMIN_PASSWORD"]
+          if len(masterkey) != 32:
+              raise SystemExit("ZITADEL_MASTERKEY must be exactly 32 characters")
+
+          dsn = (
+              "postgresql://postgres:"
+              + quote(password, safe="")
+              + "@postgres:5432/zitadel?sslmode=disable"
+          )
+          text = Path("deploy/env.template").read_text()
+          text = (
+              text.replace("__ZITADEL_DOMAIN__", domain)
+              .replace("__ZITADEL_MASTERKEY__", masterkey)
+              .replace("__POSTGRES_ADMIN_PASSWORD__", password)
+              .replace("__ZITADEL_DATABASE_POSTGRES_DSN__", dsn)
+          )
+          out = Path("runtime.env")
+          out.write_text(text)
+          out.chmod(0o600)
+          print("runtime.env written (values redacted)")
+          PY
+
       - name: Rsync deploy files
         env:
           HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
           USER_NAME: ${{ secrets.ZITADEL_DEPLOY_USER }}
         run: |
           ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
-            "${USER_NAME}@${HOST}" "mkdir -p ${REMOTE_PATH}"
+            "${USER_NAME}@${HOST}" "mkdir -p ${REMOTE_PATH} /etc/masterdoc-zitadel"
           rsync -avz --delete \
             -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
             --exclude '.env' \
             --exclude '.env.*' \
+            --exclude 'env.template' \
+            --exclude '.env.example' \
             deploy/ "${USER_NAME}@${HOST}:${REMOTE_PATH}/"
 
-      - name: Compose up
+      - name: Install .env and Compose up
         env:
           HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
           USER_NAME: ${{ secrets.ZITADEL_DEPLOY_USER }}
         run: |
+          scp -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
+            runtime.env "${USER_NAME}@${HOST}:${REMOTE_ENV}"
           ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes "${USER_NAME}@${HOST}" bash -s <<EOF
           set -euo pipefail
-          test -f /etc/masterdoc-zitadel/.env || {
-            echo "Missing /etc/masterdoc-zitadel/.env on VPS — create from deploy/.env.example first"
-            exit 1
-          }
-          ln -sfn /etc/masterdoc-zitadel/.env ${REMOTE_PATH}/.env
+          chmod 600 ${REMOTE_ENV}
+          ln -sfn ${REMOTE_ENV} ${REMOTE_PATH}/.env
           cd ${REMOTE_PATH}
           docker compose --env-file .env \
             -f docker-compose.yml \

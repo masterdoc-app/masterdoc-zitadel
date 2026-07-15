@@ -1,35 +1,37 @@
 # Checklist: secrets (человек)
 
-**Политика:** деплой Compose на VPS — **только из GitHub Actions**. Локальный env для деплоя **не нужен**.
+**Политика:**
+- деплой Compose — **только из GitHub Actions**;
+- **все чувствительные данные — в GitHub Secrets** (хост тоже), потому что сервер может смениться;
+- CI при каждом деплое собирает `.env` из secrets и кладёт на текущий VPS;
+- локальный env **не нужен**.
 
 Значения **не** присылай в чат.
 
 ## GitHub → `AntonButov/masterdoc-zitadel` → Settings → Secrets → Actions
 
-Обязательны для deploy workflow:
+### Обязательны для Deploy
 
-| Secret | Назначение |
-|--------|------------|
-| `ZITADEL_DEPLOY_HOST` | IP/host RU VPS (не коммитить) |
-| `ZITADEL_DEPLOY_USER` | SSH user |
-| `ZITADEL_SSH_PRIVATE_KEY` | private key целиком |
+| Secret | Назначение | Как сгенерировать |
+|--------|------------|-------------------|
+| `ZITADEL_DEPLOY_HOST` | IP/host текущего VPS | — |
+| `ZITADEL_DEPLOY_USER` | SSH user (`root` / …) | — |
+| `ZITADEL_SSH_PRIVATE_KEY` | private key целиком | ключ с доступом на VPS |
+| `ZITADEL_DOMAIN` | FQDN IdP без `https://` | DNS A → этот host |
+| `ZITADEL_MASTERKEY` | ровно **32** символа; **не менять** после первого успешного старта | `tr -dc A-Za-z0-9 </dev/urandom \| head -c 32` |
+| `POSTGRES_ADMIN_PASSWORD` | пароль Postgres; DSN соберёт CI | сильный пароль |
 
-Позже (terraform apply / live — отдельный workflow или dispatch):
+Смена сервера: обнови `ZITADEL_DEPLOY_HOST` (+ DNS при необходимости) и перезапусти Deploy. Masterkey/пароль БД **не** пересоздавай, если переносишь тот же volume данных.
+
+### Позже (Terraform / live)
 
 | Secret | Когда |
 |--------|--------|
-| `ZITADEL_DOMAIN` | DNS готов |
 | `ZITADEL_TOKEN` | после machine user PAT |
 | `ZITADEL_ORG_ID` | после bootstrap Console |
 
-## На VPS (один раз, руками или bootstrap)
+## Что не лежит «только на диске сервера»
 
-`/etc/masterdoc-zitadel/.env` (`chmod 600`) — **не** в git и не обязательно в GitHub:
-
-- [ ] `ZITADEL_MASTERKEY` (32 chars, offline backup)
-- [ ] `POSTGRES_ADMIN_PASSWORD` + DSN sync
-- [ ] `ZITADEL_DOMAIN` matches DNS
-
-CI копирует только `deploy/*.yml` (+ nginx example); `.env` на сервере уже должен лежать.
+Файл `/etc/masterdoc-zitadel/.env` создаёт **CI из secrets** при деплое. Source of truth — GitHub Secrets, не ручной файл на VPS.
 
 Подробности: [RUNBOOK.md](RUNBOOK.md).

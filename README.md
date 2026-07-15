@@ -23,6 +23,6 @@ Self-host **Zitadel** для Masterdoc TOiR на инфраструктуре в
 
 ## Secrets
 
-IP, SSH, PAT, DB passwords, masterkey — не в git.  
-Класть в GitHub Actions secrets (+ `/etc/…/.env` на VPS для Compose).  
-Локальный env для деплоя не нужен — [docs/SECRETS.md](docs/SECRETS.md).
+Host, SSH, domain, masterkey, DB password — **только GitHub Actions secrets**.  
+CI сам собирает `.env` на текущий VPS (сервер можно менять).  
+Локальный env не нужен — [docs/SECRETS.md](docs/SECRETS.md).
