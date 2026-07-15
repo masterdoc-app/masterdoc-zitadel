@@ -24,8 +24,7 @@ jobs:
 
       - name: Terraform validate
         working-directory: terraform
-        run: |
-          terraform validate -var='zitadel_domain=validate.example.com' -var='zitadel_token=validate-only' -var='zitadel_org_id=0'
+        run: terraform validate
 
   verify-unit:
     runs-on: ubuntu-latest

@@ -18,17 +18,20 @@ provider "zitadel" {
 variable "zitadel_domain" {
   type        = string
   description = "FQDN of self-hosted Zitadel (no scheme). From env ZITADEL_DOMAIN / secrets."
+  default     = "auth.example.com"
 }
 
 variable "zitadel_token" {
   type        = string
   sensitive   = true
   description = "Machine user PAT. From env ZITADEL_TOKEN — never commit."
+  default     = "unset"
 }
 
 variable "zitadel_org_id" {
   type        = string
   description = "Owner org id (product). From env ZITADEL_ORG_ID."
+  default     = "0"
 }
 
 variable "zitadel_port" {
