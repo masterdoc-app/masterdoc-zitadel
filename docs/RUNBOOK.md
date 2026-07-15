@@ -20,7 +20,7 @@
 ## 1. DNS и TLS
 
 1. A-запись `${ZITADEL_DOMAIN}` → текущий `ZITADEL_DEPLOY_HOST`.
-2. TLS: nginx на `:80`/`:443`, Traefik только на `127.0.0.1:8080` — [`deploy/nginx.example.conf`](../deploy/nginx.example.conf).
+2. TLS: nginx на `:80`/`:443`, Traefik только на `127.0.0.1:18080` — [`deploy/nginx.example.conf`](../deploy/nginx.example.conf).
 
 ## 2. Деплой
 

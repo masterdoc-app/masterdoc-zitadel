@@ -13,7 +13,7 @@ Official-style Compose pack (Zitadel v4 + Traefik + Postgres).
 
 ## Typical prod (TLS on nginx)
 
-Traefik binds `127.0.0.1:8080`; nginx terminates TLS and proxies there (`nginx.example.conf`).
+Traefik binds `127.0.0.1:18080`; nginx terminates TLS and proxies there (`nginx.example.conf`).
 
 Deploy: GitHub Actions only — see [../docs/RUNBOOK.md](../docs/RUNBOOK.md).
 
