@@ -1,0 +1,15 @@
+# Root gitignore — never commit secrets or host IPs
+.env
+**/.env
+*.pem
+*.key
+terraform/terraform.tfvars
+terraform/.terraform/
+verify/.gradle/
+verify/build/
+.idea/
+*.iml
+.DS_Store
+verify/build/
+verify/.gradle/
+verify/.kotlin/

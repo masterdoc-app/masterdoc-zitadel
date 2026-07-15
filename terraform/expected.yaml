@@ -1,0 +1,32 @@
+# Expected platform invariants (source for verify suite + docs).
+# No secrets here.
+
+project_name: masterdoc-toir
+
+roles:
+  - admin
+  - dispatcher
+  - engineer
+  - requester
+  - reporter
+
+oidc_apps:
+  - name: masterdoc-kmp-native
+    app_type: native
+    auth_method: none
+    grant_types:
+      - authorization_code
+      - refresh_token
+    role_assertion: true
+  - name: masterdoc-kmp-web
+    app_type: user_agent
+    auth_method: none
+    grant_types:
+      - authorization_code
+      - refresh_token
+    role_assertion: true
+
+login_policy:
+  allow_register: false
+  user_login: true
+  allow_external_idp: false

@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (gitignored) or export env vars for the wrapper.
+# Never commit real tokens.
+
+zitadel_domain = "auth.example.com"
+zitadel_org_id = "REPLACE_ORG_ID"
+zitadel_token  = "REPLACE_PAT"
+
+# Optional overrides:
+# zitadel_port     = "443"
+# zitadel_insecure = false
+# native_redirect_uris = ["masterdoc://auth/callback"]
+# web_redirect_uris    = ["https://app.example.com/auth/callback"]

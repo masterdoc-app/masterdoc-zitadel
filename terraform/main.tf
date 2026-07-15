@@ -1,0 +1,177 @@
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    zitadel = {
+      source  = "zitadel/zitadel"
+      version = ">= 2.0.0, < 3.0.0"
+    }
+  }
+}
+
+provider "zitadel" {
+  domain       = var.zitadel_domain
+  port         = var.zitadel_port
+  insecure     = var.zitadel_insecure
+  access_token = var.zitadel_token
+}
+
+variable "zitadel_domain" {
+  type        = string
+  description = "FQDN of self-hosted Zitadel (no scheme). From env ZITADEL_DOMAIN / secrets."
+}
+
+variable "zitadel_token" {
+  type        = string
+  sensitive   = true
+  description = "Machine user PAT. From env ZITADEL_TOKEN — never commit."
+}
+
+variable "zitadel_org_id" {
+  type        = string
+  description = "Owner org id (product). From env ZITADEL_ORG_ID."
+}
+
+variable "zitadel_port" {
+  type    = string
+  default = "443"
+}
+
+variable "zitadel_insecure" {
+  type    = bool
+  default = false
+}
+
+variable "native_redirect_uris" {
+  type = list(string)
+  default = [
+    "masterdoc://auth/callback",
+    "http://127.0.0.1:8081/callback",
+  ]
+  description = "KMP native / desktop redirect URIs (adjust per app)."
+}
+
+variable "web_redirect_uris" {
+  type = list(string)
+  default = [
+    "https://app.example.com/auth/callback",
+    "http://localhost:8080/auth/callback",
+  ]
+  description = "Wasm / web redirect URIs."
+}
+
+variable "web_post_logout_redirect_uris" {
+  type = list(string)
+  default = [
+    "https://app.example.com/",
+    "http://localhost:8080/",
+  ]
+}
+
+locals {
+  roles = {
+    admin      = "Administrator"
+    dispatcher = "Dispatcher"
+    engineer   = "Engineer"
+    requester  = "Requester"
+    reporter   = "Reporter"
+  }
+}
+
+resource "zitadel_project" "toir" {
+  name                   = "masterdoc-toir"
+  org_id                 = var.zitadel_org_id
+  project_role_assertion = true
+  project_role_check     = true
+  has_project_check      = true
+}
+
+resource "zitadel_project_role" "roles" {
+  for_each     = local.roles
+  org_id       = var.zitadel_org_id
+  project_id   = zitadel_project.toir.id
+  role_key     = each.key
+  display_name = each.value
+}
+
+resource "zitadel_application_oidc" "native" {
+  org_id                       = var.zitadel_org_id
+  project_id                   = zitadel_project.toir.id
+  name                         = "masterdoc-kmp-native"
+  redirect_uris                = var.native_redirect_uris
+  post_logout_redirect_uris    = var.native_redirect_uris
+  response_types               = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types                  = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE", "OIDC_GRANT_TYPE_REFRESH_TOKEN"]
+  app_type                     = "OIDC_APP_TYPE_NATIVE"
+  auth_method_type             = "OIDC_AUTH_METHOD_TYPE_NONE"
+  version                      = "OIDC_VERSION_1_0"
+  clock_skew                   = "0s"
+  dev_mode                     = true
+  access_token_type            = "OIDC_TOKEN_TYPE_BEARER"
+  access_token_role_assertion  = true
+  id_token_role_assertion      = true
+  id_token_userinfo_assertion  = true
+  skip_native_app_success_page = true
+
+  depends_on = [zitadel_project_role.roles]
+}
+
+resource "zitadel_application_oidc" "web" {
+  org_id                      = var.zitadel_org_id
+  project_id                  = zitadel_project.toir.id
+  name                        = "masterdoc-kmp-web"
+  redirect_uris               = var.web_redirect_uris
+  post_logout_redirect_uris   = var.web_post_logout_redirect_uris
+  response_types              = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types                 = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE", "OIDC_GRANT_TYPE_REFRESH_TOKEN"]
+  app_type                    = "OIDC_APP_TYPE_USER_AGENT"
+  auth_method_type            = "OIDC_AUTH_METHOD_TYPE_NONE"
+  version                     = "OIDC_VERSION_1_0"
+  clock_skew                  = "0s"
+  dev_mode                    = true
+  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  access_token_role_assertion = true
+  id_token_role_assertion     = true
+  id_token_userinfo_assertion = true
+
+  depends_on = [zitadel_project_role.roles]
+}
+
+resource "zitadel_login_policy" "no_self_signup" {
+  org_id                        = var.zitadel_org_id
+  user_login                    = true
+  allow_register                = false
+  allow_external_idp            = false
+  force_mfa                     = false
+  force_mfa_local_only          = false
+  passwordless_type             = "PASSWORDLESS_TYPE_NOT_ALLOWED"
+  hide_password_reset           = false
+  ignore_unknown_usernames      = true
+  default_redirect_uri          = ""
+  password_check_lifetime       = "240h0m0s"
+  external_login_check_lifetime = "240h0m0s"
+  multi_factor_check_lifetime   = "24h0m0s"
+  mfa_init_skip_lifetime        = "720h0m0s"
+  second_factor_check_lifetime  = "24h0m0s"
+  allow_domain_discovery        = false
+  disable_login_with_email      = false
+  disable_login_with_phone      = true
+  second_factors                = []
+  multi_factors                 = []
+  idps                          = []
+}
+
+output "project_id" {
+  value = zitadel_project.toir.id
+}
+
+output "native_client_id" {
+  value = zitadel_application_oidc.native.client_id
+}
+
+output "web_client_id" {
+  value = zitadel_application_oidc.web.client_id
+}
+
+output "role_keys" {
+  value = keys(local.roles)
+}
