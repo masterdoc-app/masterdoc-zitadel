@@ -13,8 +13,9 @@ services:
       - --ping.entrypoint=web
       - --log.level=${TRAEFIK_LOG_LEVEL}
       - --accesslog=${TRAEFIK_ACCESSLOG_ENABLED}
+    # Bind only localhost so public :80 can stay with nginx (TLS terminator).
     ports: !override
-      - 80:80
+      - 127.0.0.1:${PROXY_HTTP_PUBLISHED_PORT:-8080}:80
 
   zitadel-api:
     environment:
