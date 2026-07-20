@@ -112,7 +112,7 @@ resource "zitadel_application_oidc" "native" {
   version                      = "OIDC_VERSION_1_0"
   clock_skew                   = "0s"
   dev_mode                     = true
-  access_token_type            = "OIDC_TOKEN_TYPE_BEARER"
+  access_token_type            = "OIDC_TOKEN_TYPE_JWT"
   access_token_role_assertion  = true
   id_token_role_assertion      = true
   id_token_userinfo_assertion  = true
@@ -134,7 +134,7 @@ resource "zitadel_application_oidc" "web" {
   version                     = "OIDC_VERSION_1_0"
   clock_skew                  = "0s"
   dev_mode                    = true
-  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  access_token_type           = "OIDC_TOKEN_TYPE_JWT"
   access_token_role_assertion = true
   id_token_role_assertion     = true
   id_token_userinfo_assertion = true
