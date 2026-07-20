@@ -45,5 +45,11 @@ jobs:
       - name: Publish web_client_id
         run: |
           WEB_CLIENT_ID="$(sed -n 's/^WEB_CLIENT_ID=//p' /tmp/ensure-out.txt | tail -n1)"
-          echo "web_client_id=${WEB_CLIENT_ID}" >> "$GITHUB_STEP_SUMMARY"
+          INITIAL_PASSWORD="$(sed -n 's/^INITIAL_PASSWORD=//p' /tmp/ensure-out.txt | tail -n1)"
+          {
+            echo "web_client_id=${WEB_CLIENT_ID}"
+            if [[ -n "$INITIAL_PASSWORD" ]]; then
+              echo "initial_password_created=yes (see job log line INITIAL_PASSWORD=; change on first login)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
           echo "web_client_id=${WEB_CLIENT_ID}"

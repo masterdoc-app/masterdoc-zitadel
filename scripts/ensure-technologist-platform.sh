@@ -237,7 +237,7 @@ print(json.dumps({
   USER_ID="$(printf '%s' "$USERS" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0].get("id","") if r else "")')"
 fi
 if [[ -z "$USER_ID" ]]; then
-  echo "==> Listing org users (email/login) to pick grant target"
+  echo "==> Listing org users (email/login)"
   ALL="$(curl_json POST /management/v1/users/_search -d '{"query":{"offset":0,"limit":50,"asc":true}}')"
   printf '%s' "$ALL" | python3 -c '
 import json,sys
@@ -247,9 +247,41 @@ for u in (json.load(sys.stdin).get("result") or []):
     preferred=u.get("preferredLoginName") or ""
     print("id=%s login=%s email=%s" % (u.get("id"), preferred, email))
 '
-  echo "User ${GRANT_USER_EMAIL} not found — platform ready, grant skipped" >&2
-  echo "WEB_CLIENT_ID=${CLIENT_ID}"
-  exit 0
+
+  if [[ "${CREATE_USER_IF_MISSING:-true}" != "true" ]]; then
+    echo "User ${GRANT_USER_EMAIL} not found — platform ready, grant skipped" >&2
+    echo "WEB_CLIENT_ID=${CLIENT_ID}"
+    exit 0
+  fi
+
+  echo "==> Create human user ${GRANT_USER_EMAIL}"
+  INIT_PASSWORD="$(python3 -c 'import secrets,string; a=string.ascii_letters+string.digits; print("".join(secrets.choice(a) for _ in range(20))+"!aA1")')"
+  LOCAL_PART="$(printf '%s' "$GRANT_USER_EMAIL" | cut -d@ -f1 | tr -c 'A-Za-z0-9' '_')"
+  CODE="$(http_code_body POST /management/v1/users/human -d "$(GRANT_USER_EMAIL="$GRANT_USER_EMAIL" LOCAL_PART="$LOCAL_PART" INIT_PASSWORD="$INIT_PASSWORD" python3 -c '
+import json, os
+print(json.dumps({
+  "userName": os.environ["LOCAL_PART"],
+  "profile": {
+    "firstName": "Anton",
+    "lastName": "Butov",
+    "displayName": "Anton Butov",
+    "preferredLanguage": "ru",
+  },
+  "email": {
+    "email": os.environ["GRANT_USER_EMAIL"],
+    "isEmailVerified": True,
+  },
+  "initialPassword": os.environ["INIT_PASSWORD"],
+}))
+')")"
+  if [[ "$CODE" != "200" && "$CODE" != "201" ]]; then
+    echo "Create user failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    exit 1
+  fi
+  USER_ID="$(python3 -c 'import json; d=json.load(open("/tmp/zitadel-body.json")); print(d.get("userId") or d.get("id") or "")')"
+  [[ -n "$USER_ID" ]] || { echo "No user id in create response: $(cat /tmp/zitadel-body.json)" >&2; exit 1; }
+  echo "Created USER_ID=$USER_ID"
+  echo "INITIAL_PASSWORD=${INIT_PASSWORD}"
 fi
 echo "USER_ID=$USER_ID"
 
