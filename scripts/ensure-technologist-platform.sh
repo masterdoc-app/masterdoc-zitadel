@@ -217,14 +217,35 @@ for u in (json.load(sys.stdin).get("result") or []):
 if [[ -z "$USER_ID" ]]; then
   USERS="$(curl_json POST /management/v1/users/_search -d "$(GRANT_USER_EMAIL="$GRANT_USER_EMAIL" python3 -c '
 import json,os
+email=os.environ["GRANT_USER_EMAIL"]
 print(json.dumps({
   "query":{"offset":0,"limit":20,"asc":True},
-  "queries":[{"emailQuery":{"email":os.environ["GRANT_USER_EMAIL"],"method":"TEXT_QUERY_METHOD_EQUALS"}}]
+  "queries":[{"emailQuery":{"email":email,"method":"TEXT_QUERY_METHOD_EQUALS"}}]
 }))
 ')")"
   USER_ID="$(printf '%s' "$USERS" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0].get("id","") if r else "")')"
 fi
 if [[ -z "$USER_ID" ]]; then
+  USERS="$(curl_json POST /management/v1/users/_search -d "$(GRANT_USER_EMAIL="$GRANT_USER_EMAIL" python3 -c '
+import json,os
+print(json.dumps({
+  "query":{"offset":0,"limit":20,"asc":True},
+  "queries":[{"loginNameQuery":{"loginName":os.environ["GRANT_USER_EMAIL"],"method":"TEXT_QUERY_METHOD_EQUALS"}}]
+}))
+')")"
+  USER_ID="$(printf '%s' "$USERS" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0].get("id","") if r else "")')"
+fi
+if [[ -z "$USER_ID" ]]; then
+  echo "==> Listing org users (email/login) to pick grant target"
+  ALL="$(curl_json POST /management/v1/users/_search -d '{"query":{"offset":0,"limit":50,"asc":true}}')"
+  printf '%s' "$ALL" | python3 -c '
+import json,sys
+for u in (json.load(sys.stdin).get("result") or []):
+    human=u.get("human") or {}
+    email=(human.get("email") or {}).get("email") or ""
+    preferred=(u.get("preferredLoginName") or "")
+    print(f"id={u.get(\"id\")} login={preferred} email={email}")
+'
   echo "User ${GRANT_USER_EMAIL} not found — platform ready, grant skipped" >&2
   echo "WEB_CLIENT_ID=${CLIENT_ID}"
   exit 0
