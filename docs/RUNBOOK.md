@@ -43,11 +43,13 @@ Console → service user `terraform-masterdoc` → PAT → secrets `ZITADEL_TOKE
 
 ## 5. Terraform platform
 
-Workflow **Terraform Apply** (`workflow_dispatch`) — project `masterdoc-toir`, 5 roles, OIDC apps (`masterdoc-kmp-native`, `masterdoc-kmp-web`), login policy (no self-signup).
+Workflow **Terraform Apply** (`workflow_dispatch`) — project `masterdoc-toir`, roles (incl. `technologist`), OIDC apps (`masterdoc-kmp-native`, `masterdoc-kmp-web`), login policy (no self-signup).
 
 Secrets: `ZITADEL_DOMAIN`, `ZITADEL_TOKEN`, `ZITADEL_ORG_ID`.
 
-После apply — `native_client_id` / `web_client_id` в outputs workflow; положить `web_client_id` в copilot app config.
+После apply — `native_client_id` / `web_client_id` в outputs workflow; положить `web_client_id` в client-app secret `FIXAVERSE_OIDC_WEB_CLIENT_ID`.
+
+Для точечного патча (роль `technologist` + redirect `app.fixaverse.ru` + user grant): workflow **Ensure Technologist Platform**.
 
 ## 6. Verify / invite smoke
 
