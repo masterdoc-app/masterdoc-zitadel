@@ -314,8 +314,14 @@ roles=set(os.environ.get("EXISTING_ROLES","").split()); roles.discard(""); roles
 print(json.dumps({"roleKeys":sorted(roles)}))
 ')"
   CODE="$(http_code_body PUT "/management/v1/users/${USER_ID}/grants/${GRANT_ID}" -d "$ROLE_JSON")"
-  [[ "$CODE" == "200" ]] || { echo "Grant update failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2; exit 1; }
-  echo "Updated grant $GRANT_ID -> $ROLE_JSON"
+  if [[ "$CODE" == "200" ]]; then
+    echo "Updated grant $GRANT_ID -> $ROLE_JSON"
+  elif grep -q 'User grant has not been changed' /tmp/zitadel-body.json 2>/dev/null; then
+    echo "Grant already up to date ($GRANT_ID)"
+  else
+    echo "Grant update failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    exit 1
+  fi
 else
   CODE="$(http_code_body POST "/management/v1/users/${USER_ID}/grants" \
     -d "{\"projectId\":\"${PROJECT_ID}\",\"roleKeys\":[\"technologist\"]}")"
