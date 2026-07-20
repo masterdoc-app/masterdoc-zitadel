@@ -171,11 +171,13 @@ output "project_id" {
 }
 
 output "native_client_id" {
-  value = zitadel_application_oidc.native.client_id
+  value     = zitadel_application_oidc.native.client_id
+  sensitive = true
 }
 
 output "web_client_id" {
-  value = zitadel_application_oidc.web.client_id
+  value     = zitadel_application_oidc.web.client_id
+  sensitive = true
 }
 
 output "role_keys" {
