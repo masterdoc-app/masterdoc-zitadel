@@ -161,10 +161,11 @@ for a in (json.load(sys.stdin).get("result") or []):
   if [[ "$CODE" != "200" ]]; then
     CODE="$(http_code_body PUT "/management/v1/projects/${PROJECT_ID}/apps/${WEB_APP_ID}/oidc" -d "$OIDC_WEB_CREATE")"
   fi
-  [[ "$CODE" == "200" ]] || {
-    echo "Update web OIDC failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
-    exit 1
-  }
+  if [[ "$CODE" != "200" ]]; then
+    echo "Update web OIDC skipped/failed ($CODE): $(cat /tmp/zitadel-body.json) — keeping existing app config"
+  else
+    echo "OIDC redirects updated"
+  fi
 fi
 echo "CLIENT_ID=$CLIENT_ID"
 
