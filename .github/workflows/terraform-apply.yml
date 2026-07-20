@@ -44,4 +44,4 @@ jobs:
 
       - name: Show outputs
         working-directory: terraform
-        run: terraform output
+        run: terraform output -json
