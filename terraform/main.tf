@@ -56,7 +56,8 @@ variable "native_redirect_uris" {
 variable "web_redirect_uris" {
   type = list(string)
   default = [
-    "https://app.example.com/auth/callback",
+    "https://copilot.fixaverse.ru/auth/callback",
+    "https://app.fixaverse.ru/auth/callback",
     "http://localhost:8080/auth/callback",
   ]
   description = "Wasm / web redirect URIs."
@@ -65,18 +66,20 @@ variable "web_redirect_uris" {
 variable "web_post_logout_redirect_uris" {
   type = list(string)
   default = [
-    "https://app.example.com/",
+    "https://copilot.fixaverse.ru/",
+    "https://app.fixaverse.ru/",
     "http://localhost:8080/",
   ]
 }
 
 locals {
   roles = {
-    admin      = "Administrator"
-    dispatcher = "Dispatcher"
-    engineer   = "Engineer"
-    requester  = "Requester"
-    reporter   = "Reporter"
+    admin        = "Administrator"
+    dispatcher   = "Dispatcher"
+    engineer     = "Engineer"
+    requester    = "Requester"
+    reporter     = "Reporter"
+    technologist = "Technologist"
   }
 }
 

@@ -9,6 +9,7 @@ roles:
   - engineer
   - requester
   - reporter
+  - technologist
 
 oidc_apps:
   - name: masterdoc-kmp-native

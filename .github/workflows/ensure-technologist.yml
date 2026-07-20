@@ -1,0 +1,48 @@
+name: Ensure Technologist Platform
+
+on:
+  workflow_dispatch:
+    inputs:
+      grant_user_email:
+        description: Email to grant technologist role
+        required: true
+        default: mail@antonbutov.com
+
+concurrency:
+  group: ensure-technologist-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: Role + OIDC redirects + user grant
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+
+      - name: Ensure technologist platform
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          GRANT_USER_EMAIL: ${{ inputs.grant_user_email }}
+        run: |
+          chmod +x scripts/ensure-technologist-platform.sh
+          scripts/ensure-technologist-platform.sh | tee /tmp/ensure-out.txt
+
+      - name: Publish web_client_id
+        run: |
+          WEB_CLIENT_ID="$(sed -n 's/^WEB_CLIENT_ID=//p' /tmp/ensure-out.txt | tail -n1)"
+          echo "web_client_id=${WEB_CLIENT_ID}" >> "$GITHUB_STEP_SUMMARY"
+          echo "web_client_id=${WEB_CLIENT_ID}"

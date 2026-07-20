@@ -1,0 +1,47 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-zitadel-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply platform (project, roles, OIDC apps)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Verify terraform secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Terraform apply
+        working-directory: terraform
+        env:
+          TF_VAR_zitadel_domain: ${{ secrets.ZITADEL_DOMAIN }}
+          TF_VAR_zitadel_token: ${{ secrets.ZITADEL_TOKEN }}
+          TF_VAR_zitadel_org_id: ${{ secrets.ZITADEL_ORG_ID }}
+        run: terraform apply -auto-approve
+
+      - name: Show outputs
+        working-directory: terraform
+        run: terraform output
