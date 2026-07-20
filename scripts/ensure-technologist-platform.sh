@@ -244,8 +244,8 @@ import json,sys
 for u in (json.load(sys.stdin).get("result") or []):
     human=u.get("human") or {}
     email=(human.get("email") or {}).get("email") or ""
-    preferred=(u.get("preferredLoginName") or "")
-    print(f"id={u.get(\"id\")} login={preferred} email={email}")
+    preferred=u.get("preferredLoginName") or ""
+    print("id=%s login=%s email=%s" % (u.get("id"), preferred, email))
 '
   echo "User ${GRANT_USER_EMAIL} not found — platform ready, grant skipped" >&2
   echo "WEB_CLIENT_ID=${CLIENT_ID}"
