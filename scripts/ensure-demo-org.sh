@@ -140,11 +140,14 @@ print(json.dumps({
   "roleKeys": json.loads(os.environ["ROLE_KEYS_JSON"]),
 }))
 ')")"
-  [[ "$CODE" == "200" || "$CODE" == "201" ]] || {
+  if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
+    echo "Project grant created"
+  elif [[ "$CODE" == "409" ]] || grep -qiE 'already exists' /tmp/zitadel-body.json; then
+    echo "Project grant already exists (race/search miss) — OK"
+  else
     echo "Add project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
-  }
-  echo "Project grant created"
+  fi
 fi
 
 echo "==> Find or invite ${INVITE_EMAIL} in demo org"
