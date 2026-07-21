@@ -129,13 +129,33 @@ echo "Provider active"
 
 if [[ -n "$SMTP_TEST_TO" ]]; then
   echo "==> Test SMTP → ${SMTP_TEST_TO}"
-  TEST_BODY="$(SMTP_TEST_TO="$SMTP_TEST_TO" python3 -c 'import json,os; print(json.dumps({"receiverAddress": os.environ["SMTP_TEST_TO"]}))')"
-  CODE="$(admin_curl POST "/admin/v1/email/smtp/${PROVIDER_ID}/_test" -d "$TEST_BODY")"
-  [[ "$CODE" == "200" ]] || {
-    echo "TestEmailProviderSMTPById failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+  TEST_BODY="$(
+    SMTP_TEST_TO="$SMTP_TEST_TO" SMTP_HOST="$SMTP_HOST" SMTP_USER="$SMTP_USER" \
+    SMTP_FROM="$SMTP_FROM" SMTP_FROM_NAME="$SMTP_FROM_NAME" SMTP_TLS="$SMTP_TLS" \
+    SMTP_PASSWORD="$SMTP_PASSWORD" PROVIDER_ID="$PROVIDER_ID" python3 - <<'PY'
+import json, os
+tls = os.environ["SMTP_TLS"].lower() in ("1", "true", "yes")
+print(json.dumps({
+  "senderAddress": os.environ["SMTP_FROM"],
+  "senderName": os.environ["SMTP_FROM_NAME"],
+  "tls": tls,
+  "host": os.environ["SMTP_HOST"],
+  "user": os.environ["SMTP_USER"],
+  "receiverAddress": os.environ["SMTP_TEST_TO"],
+  "id": os.environ["PROVIDER_ID"],
+  "plain": {"password": os.environ["SMTP_PASSWORD"]},
+}))
+PY
+  )"
+  CODE="$(admin_curl POST /admin/v1/email/smtp/_test -d "$TEST_BODY")"
+  if [[ "$CODE" == "200" ]]; then
+    echo "Test mail accepted by SMTP"
+  elif [[ "$CODE" == "501" ]] || grep -qiE 'not implemented|Unimplemented' /tmp/zitadel-admin-body.json; then
+    echo "SMTP test endpoint not implemented on this Zitadel build — skipping (provider is active)"
+  else
+    echo "TestEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
     exit 1
-  }
-  echo "Test mail accepted by SMTP"
+  fi
 fi
 
 echo "OK"
