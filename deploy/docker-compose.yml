@@ -68,6 +68,12 @@ services:
       start_period: 20s
     volumes:
       - zitadel-bootstrap:/zitadel/bootstrap:rw
+    # Docker embedded DNS (127.0.0.11) times out on this host — breaks SMTP etc.
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "mail.antonbutov.com:91.207.75.72"
     networks:
       - zitadel
     depends_on:

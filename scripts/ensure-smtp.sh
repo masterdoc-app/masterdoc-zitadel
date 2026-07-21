@@ -78,7 +78,24 @@ for r in rows:
 PY
 )"
 
-SMTP_BODY="$(SMTP_HOST="$SMTP_HOST" SMTP_USER="$SMTP_USER" SMTP_FROM="$SMTP_FROM" \
+SMTP_BODY_NO_PASS="$(SMTP_HOST="$SMTP_HOST" SMTP_USER="$SMTP_USER" SMTP_FROM="$SMTP_FROM" \
+  SMTP_FROM_NAME="$SMTP_FROM_NAME" SMTP_TLS="$SMTP_TLS" DESC="$DESC" \
+  python3 - <<'PY'
+import json, os
+tls = os.environ["SMTP_TLS"].lower() in ("1", "true", "yes")
+print(json.dumps({
+  "senderAddress": os.environ["SMTP_FROM"],
+  "senderName": os.environ["SMTP_FROM_NAME"],
+  "tls": tls,
+  "host": os.environ["SMTP_HOST"],
+  "user": os.environ["SMTP_USER"],
+  "description": os.environ["DESC"],
+  "plain": {},
+}))
+PY
+)"
+
+SMTP_BODY_CREATE="$(SMTP_HOST="$SMTP_HOST" SMTP_USER="$SMTP_USER" SMTP_FROM="$SMTP_FROM" \
   SMTP_FROM_NAME="$SMTP_FROM_NAME" SMTP_TLS="$SMTP_TLS" SMTP_PASSWORD="$SMTP_PASSWORD" DESC="$DESC" \
   python3 - <<'PY'
 import json, os
@@ -95,16 +112,33 @@ print(json.dumps({
 PY
 )"
 
+if [[ -n "$PROVIDER_ID" && "${ZITADEL_SMTP_RECREATE:-false}" == "true" ]]; then
+  echo "Recreating provider $PROVIDER_ID (avoid broken password projection)"
+  CODE="$(admin_curl DELETE "/admin/v1/email/${PROVIDER_ID}")"
+  if [[ "$CODE" != "200" ]]; then
+    echo "DeleteEmailProvider failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+    exit 1
+  fi
+  PROVIDER_ID=""
+fi
+
 if [[ -n "$PROVIDER_ID" ]]; then
-  echo "Updating provider $PROVIDER_ID"
-  CODE="$(admin_curl PUT "/admin/v1/email/smtp/${PROVIDER_ID}" -d "$SMTP_BODY")"
+  echo "Updating provider $PROVIDER_ID (no password in PUT — projection bug)"
+  CODE="$(admin_curl PUT "/admin/v1/email/smtp/${PROVIDER_ID}" -d "$SMTP_BODY_NO_PASS")"
   [[ "$CODE" == "200" ]] || {
     echo "UpdateEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
     exit 1
   }
+  CODE="$(admin_curl PUT "/admin/v1/email/smtp/${PROVIDER_ID}/password" -d "$(
+    SMTP_PASSWORD="$SMTP_PASSWORD" python3 -c 'import json,os; print(json.dumps({"password": os.environ["SMTP_PASSWORD"]}))'
+  )")"
+  [[ "$CODE" == "200" ]] || {
+    echo "UpdateEmailProviderSMTPPassword failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+    exit 1
+  }
 else
   echo "Creating SMTP provider"
-  CODE="$(admin_curl POST /admin/v1/email/smtp -d "$SMTP_BODY")"
+  CODE="$(admin_curl POST /admin/v1/email/smtp -d "$SMTP_BODY_CREATE")"
   [[ "$CODE" == "200" || "$CODE" == "201" ]] || {
     echo "AddEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
     exit 1
@@ -153,8 +187,8 @@ PY
   elif [[ "$CODE" == "501" ]] || grep -qiE 'not implemented|Unimplemented' /tmp/zitadel-admin-body.json; then
     echo "SMTP test endpoint not implemented on this Zitadel build — skipping (provider is active)"
   else
-    echo "WARN: TestEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
-    echo "WARN: provider is configured; invite may still fail until Zitadel VPS can reach ${SMTP_HOST}" >&2
+    echo "TestEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+    exit 1
   fi
 fi
 
