@@ -75,6 +75,15 @@ jobs:
           chmod +x scripts/ensure-branding-texts.sh
           scripts/ensure-branding-texts.sh | tee /tmp/brand-out.txt
 
+      - name: Ensure login email label (RU)
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-login-email-label.sh
+          scripts/ensure-login-email-label.sh | tee /tmp/email-label-out.txt
+
       - name: Ensure login policy (show password reset)
         env:
           ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}

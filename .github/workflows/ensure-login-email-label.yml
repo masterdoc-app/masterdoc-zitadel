@@ -1,0 +1,46 @@
+name: Ensure Login Email Label
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ensure-login-email-label-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: Login field = email only
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+
+      - name: Ensure login email label
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-login-email-label.sh
+          scripts/ensure-login-email-label.sh | tee /tmp/email-label-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Login email label"
+            if [[ -f /tmp/email-label-out.txt ]]; then
+              echo '```'
+              cat /tmp/email-label-out.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
