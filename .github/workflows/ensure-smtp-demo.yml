@@ -75,6 +75,17 @@ jobs:
           chmod +x scripts/ensure-branding-texts.sh
           scripts/ensure-branding-texts.sh | tee /tmp/brand-out.txt
 
+      - name: Ensure login policy (show password reset)
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          EXTRA_ORG_IDS: "382715225649971203"
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-login-policy-password-reset.sh
+          scripts/ensure-login-policy-password-reset.sh | tee /tmp/login-policy-out.txt
+
       - name: Ensure SMTP
         env:
           ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
