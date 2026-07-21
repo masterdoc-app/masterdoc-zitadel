@@ -53,6 +53,18 @@ jobs:
           chmod +x scripts/smtp-diag-from-vps.sh
           scripts/smtp-diag-from-vps.sh | tee /tmp/smtp-diag.txt
 
+      - name: SMTP from zitadel-api container
+        if: always()
+        env:
+          ZITADEL_DEPLOY_HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+          ZITADEL_DEPLOY_USER: ${{ secrets.ZITADEL_DEPLOY_USER }}
+          ZITADEL_SSH_PRIVATE_KEY: ${{ secrets.ZITADEL_SSH_PRIVATE_KEY }}
+          SMTP_HOST: mail.antonbutov.com
+        run: |
+          set -o pipefail
+          chmod +x scripts/smtp-diag-in-container.sh
+          scripts/smtp-diag-in-container.sh | tee /tmp/smtp-container.txt || true
+
       - name: Ensure SMTP
         env:
           ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
