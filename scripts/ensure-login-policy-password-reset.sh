@@ -30,6 +30,7 @@ ensure_org() {
   fi
   # Management API expects seconds-based durations (e.g. 864000s), not Go "240h0m0s".
   BODY='{
+    "allowUsernamePassword": true,
     "userLogin": true,
     "allowRegister": false,
     "allowExternalIdp": false,
