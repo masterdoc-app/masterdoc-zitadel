@@ -17,6 +17,8 @@ INVITE_EMAIL="${INVITE_EMAIL:-mail@antonbutov.com}"
 INVITE_GIVEN_NAME="${INVITE_GIVEN_NAME:-Anton}"
 INVITE_FAMILY_NAME="${INVITE_FAMILY_NAME:-Butov}"
 INVITE_ROLE_KEYS="${INVITE_ROLE_KEYS:-admin}"
+INVITE_APP_NAME="${INVITE_APP_NAME:-Fixaverse}"
+INVITE_LANG="${INVITE_LANG:-ru}"
 PROJECT_NAME="masterdoc-toir"
 API="https://${DOMAIN}"
 
@@ -165,18 +167,20 @@ print(json.dumps({
 USER_ID="$(python3 -c 'import json; r=json.load(open("/tmp/zitadel-body.json")).get("result") or []; print(r[0].get("id","") if r else "")')"
 
 if [[ -z "$USER_ID" ]]; then
-  echo "Creating human + sendCode invite"
+  echo "Creating human (ru) then invite with applicationName=${INVITE_APP_NAME}"
   CODE="$(mgmt_curl "$DEMO_ORG_ID" POST /v2/users/human -d "$(
-    INVITE_EMAIL="$INVITE_EMAIL" INVITE_GIVEN_NAME="$INVITE_GIVEN_NAME" INVITE_FAMILY_NAME="$INVITE_FAMILY_NAME" python3 -c '
+    INVITE_EMAIL="$INVITE_EMAIL" INVITE_GIVEN_NAME="$INVITE_GIVEN_NAME" \
+    INVITE_FAMILY_NAME="$INVITE_FAMILY_NAME" INVITE_LANG="$INVITE_LANG" python3 -c '
 import json,os
 print(json.dumps({
   "profile": {
     "givenName": os.environ["INVITE_GIVEN_NAME"],
     "familyName": os.environ["INVITE_FAMILY_NAME"],
+    "preferredLanguage": os.environ["INVITE_LANG"],
   },
   "email": {
     "email": os.environ["INVITE_EMAIL"],
-    "sendCode": {},
+    "isVerified": False,
   },
 }))
 ')")"
@@ -189,17 +193,41 @@ print(json.dumps({
     echo "No user id: $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   }
-  echo "INVITE_SENT=yes"
 else
-  echo "User exists USER_ID=$USER_ID — resend invite code"
-  CODE="$(mgmt_curl "$DEMO_ORG_ID" POST "/v2/users/${USER_ID}/invite_code" -d '{"sendCode":{}}')"
-  if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
-    echo "INVITE_SENT=yes"
-  else
-    echo "Resend invite skipped/failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+  echo "User exists USER_ID=$USER_ID — set preferredLanguage=${INVITE_LANG}"
+  CODE="$(mgmt_curl "$DEMO_ORG_ID" PATCH "/v2/users/${USER_ID}" -d "$(
+    INVITE_GIVEN_NAME="$INVITE_GIVEN_NAME" INVITE_FAMILY_NAME="$INVITE_FAMILY_NAME" INVITE_LANG="$INVITE_LANG" python3 -c '
+import json,os
+print(json.dumps({
+  "profile": {
+    "givenName": os.environ["INVITE_GIVEN_NAME"],
+    "familyName": os.environ["INVITE_FAMILY_NAME"],
+    "preferredLanguage": os.environ["INVITE_LANG"],
+  },
+}))
+')")"
+  if [[ "$CODE" != "200" ]]; then
+    echo "WARN: update profile language failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
   fi
 fi
 echo "USER_ID=$USER_ID"
+
+echo "==> Send invite code (applicationName=${INVITE_APP_NAME})"
+CODE="$(mgmt_curl "$DEMO_ORG_ID" POST "/v2/users/${USER_ID}/invite_code" -d "$(
+  INVITE_APP_NAME="$INVITE_APP_NAME" python3 -c '
+import json,os
+print(json.dumps({
+  "sendCode": {
+    "applicationName": os.environ["INVITE_APP_NAME"],
+  },
+}))
+')")"
+if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
+  echo "INVITE_SENT=yes"
+else
+  echo "Invite send failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+  exit 1
+fi
 
 echo "==> Ensure user project grant (${INVITE_ROLE_KEYS})"
 CODE="$(mgmt_curl "$DEMO_ORG_ID" POST /management/v1/users/grants/_search -d "$(python3 -c "

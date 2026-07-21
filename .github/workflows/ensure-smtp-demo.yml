@@ -65,6 +65,16 @@ jobs:
           chmod +x scripts/smtp-diag-in-container.sh
           scripts/smtp-diag-in-container.sh | tee /tmp/smtp-container.txt || true
 
+      - name: Ensure branding texts (RU + Fixaverse)
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          BRAND_APP_NAME: Fixaverse
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-branding-texts.sh
+          scripts/ensure-branding-texts.sh | tee /tmp/brand-out.txt
+
       - name: Ensure SMTP
         env:
           ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
@@ -91,6 +101,8 @@ jobs:
           DEMO_ORG_NAME: ${{ inputs.demo_org_name }}
           INVITE_EMAIL: ${{ inputs.invite_email }}
           INVITE_ROLE_KEYS: admin
+          INVITE_APP_NAME: Fixaverse
+          INVITE_LANG: ru
         run: |
           set -o pipefail
           chmod +x scripts/ensure-demo-org.sh
