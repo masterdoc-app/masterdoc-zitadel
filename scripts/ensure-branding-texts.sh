@@ -29,6 +29,16 @@ if [[ "$CODE" != "200" ]]; then
 fi
 echo "Default language set to ru"
 
+echo "==> Restrict allowed languages → ru only"
+CODE="$(admin_curl PUT /admin/v1/restrictions -d '{"allowedLanguages":{"list":["ru"]}}')"
+if [[ "$CODE" != "200" ]]; then
+  if ! grep -qiE 'not been changed|не измен|AlreadyExists|NO_CHANGES' /tmp/zitadel-admin-body.json; then
+    echo "SetRestrictions (allowedLanguages=ru) failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+    exit 1
+  fi
+fi
+echo "Allowed languages restricted to ru"
+
 set_invite_text() {
   local lang="$1"
   local body="$2"
@@ -62,26 +72,7 @@ print(json.dumps({
 PY
 )"
 
-EN_BODY="$(APP_NAME="$APP_NAME" python3 - <<'PY'
-import json, os
-a = os.environ["APP_NAME"]
-print(json.dumps({
-  "title": f"Invitation to {a}",
-  "preHeader": f"Invitation to {a}",
-  "subject": f"Invitation to {a}",
-  "greeting": "Hello {{.DisplayName}},",
-  "text": (
-    f"You have been invited to {a}. Click the button below to finish the invite "
-    "and set your password. If you did not expect this email, you can ignore it."
-  ),
-  "buttonText": "Accept invite",
-  "footerText": a,
-}))
-PY
-)"
-
 set_invite_text ru "$RU_BODY"
-set_invite_text en "$EN_BODY"
 
 echo "BRAND_APP_NAME=${APP_NAME}"
 echo "OK"

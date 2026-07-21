@@ -128,7 +128,7 @@ print(json.dumps(sorted(set(all_roles)|set(keys))))
 if [[ -n "$GRANT_ID" ]]; then
   CODE="$(mgmt_curl "$PLATFORM_ORG_ID" PUT "/management/v1/projects/${PROJECT_ID}/grants/${GRANT_ID}" \
     -d "{\"roleKeys\": ${ROLE_KEYS_JSON}}")"
-  if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed' /tmp/zitadel-body.json; then
+  if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed|не измен|не был изменён|NO_CHANGES|COMMAND-Rs8fy' /tmp/zitadel-body.json; then
     echo "Update project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   fi
@@ -194,20 +194,23 @@ print(json.dumps({
     exit 1
   }
 else
-  echo "User exists USER_ID=$USER_ID — set preferredLanguage=${INVITE_LANG}"
-  CODE="$(mgmt_curl "$DEMO_ORG_ID" PATCH "/v2/users/${USER_ID}" -d "$(
+  echo "User exists USER_ID=$USER_ID — set preferredLanguage=${INVITE_LANG} (v1 profile)"
+  CODE="$(mgmt_curl "$DEMO_ORG_ID" PUT "/management/v1/users/${USER_ID}/profile" -d "$(
     INVITE_GIVEN_NAME="$INVITE_GIVEN_NAME" INVITE_FAMILY_NAME="$INVITE_FAMILY_NAME" INVITE_LANG="$INVITE_LANG" python3 -c '
 import json,os
+gn=os.environ["INVITE_GIVEN_NAME"]
+fn=os.environ["INVITE_FAMILY_NAME"]
 print(json.dumps({
-  "profile": {
-    "givenName": os.environ["INVITE_GIVEN_NAME"],
-    "familyName": os.environ["INVITE_FAMILY_NAME"],
-    "preferredLanguage": os.environ["INVITE_LANG"],
-  },
+  "firstName": gn,
+  "lastName": fn,
+  "displayName": f"{gn} {fn}",
+  "preferredLanguage": os.environ["INVITE_LANG"],
 }))
 ')")"
   if [[ "$CODE" != "200" ]]; then
-    echo "WARN: update profile language failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    if ! grep -qiE 'not been changed|не измен|NO_CHANGES' /tmp/zitadel-body.json; then
+      echo "WARN: update profile language failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    fi
   fi
 fi
 echo "USER_ID=$USER_ID"
@@ -246,7 +249,7 @@ USER_ROLES_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c 'import json,
 if [[ -n "$UG_ID" ]]; then
   CODE="$(mgmt_curl "$DEMO_ORG_ID" PUT "/management/v1/users/${USER_ID}/grants/${UG_ID}" \
     -d "{\"roleKeys\": ${USER_ROLES_JSON}}")"
-  if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed' /tmp/zitadel-body.json; then
+  if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed|не измен|не был изменён|NO_CHANGES|COMMAND-Rs8fy|User grant has not been changed' /tmp/zitadel-body.json; then
     echo "Update user grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   fi
