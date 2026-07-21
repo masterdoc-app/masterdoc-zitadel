@@ -49,7 +49,7 @@ CODE="$(curl -sS -o /tmp/zitadel-body.json -w '%{http_code}' \
   -X PUT "${API}/admin/v1/policies/password/complexity" \
   -d "$BODY")"
 if [[ "$CODE" != "200" ]]; then
-  if grep -qiE 'not been changed|не измен' /tmp/zitadel-body.json; then
+  if grep -qiE 'not been changed|INSTANCE-9jlsf|не была изменен|не изменен' /tmp/zitadel-body.json; then
     echo "OK (unchanged)"
   else
     echo "Update password complexity failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
