@@ -24,6 +24,11 @@ ensure_org() {
   fi
   HIDE="$(python3 -c 'import json; p=json.load(open("/tmp/zitadel-body.json")).get("policy") or {}; print(str(p.get("hidePasswordReset", False)).lower())')"
   echo "hidePasswordReset=$HIDE"
+  if [[ "$HIDE" == "false" ]]; then
+    echo "OK org=$org_id (already shows password reset)"
+    return 0
+  fi
+  # Management API expects seconds-based durations (e.g. 864000s), not Go "240h0m0s".
   BODY='{
     "userLogin": true,
     "allowRegister": false,
@@ -34,11 +39,11 @@ ensure_org() {
     "hidePasswordReset": false,
     "ignoreUnknownUsernames": true,
     "defaultRedirectUri": "",
-    "passwordCheckLifetime": "240h0m0s",
-    "externalLoginCheckLifetime": "240h0m0s",
-    "mfaInitSkipLifetime": "720h0m0s",
-    "secondFactorCheckLifetime": "24h0m0s",
-    "multiFactorCheckLifetime": "24h0m0s",
+    "passwordCheckLifetime": "864000s",
+    "externalLoginCheckLifetime": "864000s",
+    "mfaInitSkipLifetime": "2592000s",
+    "secondFactorCheckLifetime": "86400s",
+    "multiFactorCheckLifetime": "86400s",
     "allowDomainDiscovery": false,
     "disableLoginWithEmail": false,
     "disableLoginWithPhone": true
