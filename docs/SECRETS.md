@@ -29,6 +29,7 @@
 |--------|--------|
 | `ZITADEL_TOKEN` | после machine user PAT |
 | `ZITADEL_ORG_ID` | после bootstrap Console |
+| `ZITADEL_SMTP_PASSWORD` | SMTP пароль для `mail@antonbutov.com` на `mail.antonbutov.com:587` (workflow **Ensure SMTP + Demo Org**) |
 
 ## Что не лежит «только на диске сервера»
 

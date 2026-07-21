@@ -51,11 +51,20 @@ Secrets: `ZITADEL_DOMAIN`, `ZITADEL_TOKEN`, `ZITADEL_ORG_ID`.
 
 Для точечного патча (роль `technologist` + redirect `app.fixaverse.ru` + user grant): workflow **Ensure Technologist Platform**.
 
-## 6. Verify / invite smoke
+## 6. SMTP + demo org invite
+
+Workflow **Ensure SMTP + Demo Org** (`workflow_dispatch`):
+
+1. Admin API: domain policy (`smtpSenderAddressMatchesInstanceDomain=false`), SMTP provider `mail.antonbutov.com:587` / From `mail@antonbutov.com`, activate + test mail.
+2. Создаёт (или переиспользует) org **Fixaverse Demo**, project grant `masterdoc-toir`, invite на email (default `mail@antonbutov.com`).
+
+Secret: `ZITADEL_SMTP_PASSWORD`.
+
+## 7. Verify / invite smoke
 
 Unit в CI; live и invite — по Console / opt-in.
 
-## 7. Бэкапы
+## 8. Бэкапы
 
 - Dump Postgres volume.
 - Offline копия `ZITADEL_MASTERKEY` (из password manager / того же secret backup).

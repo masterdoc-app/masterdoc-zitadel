@@ -1,0 +1,87 @@
+name: Ensure SMTP + Demo Org
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo_org_name:
+        description: Client organization name
+        required: true
+        default: Fixaverse Demo
+      invite_email:
+        description: Email to invite into the org
+        required: true
+        default: mail@antonbutov.com
+      skip_invite:
+        description: Only configure SMTP (skip org/invite)
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: ensure-smtp-demo-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: SMTP + Fixaverse Demo org
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          SMTP_PASSWORD: ${{ secrets.ZITADEL_SMTP_PASSWORD }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+          test -n "$SMTP_PASSWORD" || { echo "Add secret ZITADEL_SMTP_PASSWORD"; exit 1; }
+
+      - name: Ensure SMTP
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_SMTP_PASSWORD: ${{ secrets.ZITADEL_SMTP_PASSWORD }}
+          ZITADEL_SMTP_HOST: mail.antonbutov.com:587
+          ZITADEL_SMTP_USER: mail@antonbutov.com
+          ZITADEL_SMTP_FROM: mail@antonbutov.com
+          ZITADEL_SMTP_FROM_NAME: Fixaverse
+          ZITADEL_SMTP_TLS: "true"
+          ZITADEL_SMTP_TEST_TO: ${{ inputs.invite_email }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-smtp.sh
+          scripts/ensure-smtp.sh | tee /tmp/smtp-out.txt
+
+      - name: Ensure demo org + invite
+        if: ${{ inputs.skip_invite == false }}
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          DEMO_ORG_NAME: ${{ inputs.demo_org_name }}
+          INVITE_EMAIL: ${{ inputs.invite_email }}
+          INVITE_ROLE_KEYS: admin
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-demo-org.sh
+          scripts/ensure-demo-org.sh | tee /tmp/demo-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## SMTP + Demo org"
+            if [[ -f /tmp/smtp-out.txt ]]; then
+              echo "- provider: \`$(sed -n 's/^PROVIDER_ID=//p' /tmp/smtp-out.txt | tail -n1)\`"
+            fi
+            if [[ -f /tmp/demo-out.txt ]]; then
+              echo "- org: \`$(sed -n 's/^DEMO_ORG_NAME=//p' /tmp/demo-out.txt | tail -n1)\` (\`$(sed -n 's/^DEMO_ORG_ID=//p' /tmp/demo-out.txt | tail -n1)\`)"
+              echo "- invite: \`$(sed -n 's/^INVITE_EMAIL=//p' /tmp/demo-out.txt | tail -n1)\` sent=\`$(sed -n 's/^INVITE_SENT=//p' /tmp/demo-out.txt | tail -n1)\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
