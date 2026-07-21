@@ -22,8 +22,10 @@ admin_curl() {
 echo "==> Default language → ru"
 CODE="$(admin_curl PUT /admin/v1/languages/default/ru -d '{}')"
 if [[ "$CODE" != "200" ]]; then
-  echo "SetDefaultLanguage failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
-  exit 1
+  if ! grep -qiE 'not been changed|не измен|AlreadyExists|NO_CHANGES' /tmp/zitadel-admin-body.json; then
+    echo "SetDefaultLanguage failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+    exit 1
+  fi
 fi
 echo "Default language set to ru"
 
@@ -32,10 +34,12 @@ set_invite_text() {
   local body="$2"
   echo "==> Invite message texts ($lang)"
   CODE="$(admin_curl PUT "/admin/v1/text/message/invite_user/${lang}" -d "$body")"
-  [[ "$CODE" == "200" ]] || {
-    echo "SetDefaultInviteUserMessageText ($lang) failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
-    exit 1
-  }
+  if [[ "$CODE" != "200" ]]; then
+    if ! grep -qiE 'not been changed|не измен|AlreadyExists|NO_CHANGES' /tmp/zitadel-admin-body.json; then
+      echo "SetDefaultInviteUserMessageText ($lang) failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+      exit 1
+    fi
+  fi
   echo "OK $lang"
 }
 
