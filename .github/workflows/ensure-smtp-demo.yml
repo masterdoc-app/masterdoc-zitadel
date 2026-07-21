@@ -42,6 +42,17 @@ jobs:
           test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
           test -n "$SMTP_PASSWORD" || { echo "Add secret ZITADEL_SMTP_PASSWORD"; exit 1; }
 
+      - name: SMTP reachability from Zitadel VPS
+        env:
+          ZITADEL_DEPLOY_HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+          ZITADEL_DEPLOY_USER: ${{ secrets.ZITADEL_DEPLOY_USER }}
+          ZITADEL_SSH_PRIVATE_KEY: ${{ secrets.ZITADEL_SSH_PRIVATE_KEY }}
+          SMTP_HOST: mail.antonbutov.com
+        run: |
+          set -o pipefail
+          chmod +x scripts/smtp-diag-from-vps.sh
+          scripts/smtp-diag-from-vps.sh | tee /tmp/smtp-diag.txt
+
       - name: Ensure SMTP
         env:
           ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}

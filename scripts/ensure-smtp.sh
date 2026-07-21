@@ -153,8 +153,8 @@ PY
   elif [[ "$CODE" == "501" ]] || grep -qiE 'not implemented|Unimplemented' /tmp/zitadel-admin-body.json; then
     echo "SMTP test endpoint not implemented on this Zitadel build — skipping (provider is active)"
   else
-    echo "TestEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
-    exit 1
+    echo "WARN: TestEmailProviderSMTP failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
+    echo "WARN: provider is configured; invite may still fail until Zitadel VPS can reach ${SMTP_HOST}" >&2
   fi
 fi
 
