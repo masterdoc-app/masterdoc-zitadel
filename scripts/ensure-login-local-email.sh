@@ -59,6 +59,7 @@ PY
 ORG_BODY="$(DEFAULT_REDIRECT_URI="$DEFAULT_REDIRECT_URI" python3 - <<'PY'
 import json, os
 print(json.dumps({
+  "allowUsernamePassword": True,
   "userLogin": True,
   "allowRegister": False,
   "allowExternalIdp": False,
