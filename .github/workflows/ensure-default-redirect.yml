@@ -1,0 +1,56 @@
+name: Ensure Default Redirect
+
+on:
+  workflow_dispatch:
+    inputs:
+      default_redirect_uri:
+        description: Where invite/password flows should land (not Console)
+        required: true
+        default: https://app.fixaverse.ru/
+
+concurrency:
+  group: ensure-default-redirect-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: Default redirect → app
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+
+      - name: Ensure default redirect URI
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          EXTRA_ORG_IDS: "382715225649971203"
+          DEFAULT_REDIRECT_URI: ${{ inputs.default_redirect_uri }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-default-redirect.sh
+          scripts/ensure-default-redirect.sh | tee /tmp/redirect-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Default redirect"
+            if [[ -f /tmp/redirect-out.txt ]]; then
+              echo '```'
+              cat /tmp/redirect-out.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

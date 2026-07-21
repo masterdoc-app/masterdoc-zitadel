@@ -38,7 +38,7 @@ ensure_org() {
     "passwordlessType": "PASSWORDLESS_TYPE_NOT_ALLOWED",
     "hidePasswordReset": false,
     "ignoreUnknownUsernames": true,
-    "defaultRedirectUri": "",
+    "defaultRedirectUri": "https://app.fixaverse.ru/",
     "passwordCheckLifetime": "864000s",
     "externalLoginCheckLifetime": "864000s",
     "mfaInitSkipLifetime": "2592000s",

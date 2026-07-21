@@ -152,7 +152,7 @@ resource "zitadel_login_policy" "no_self_signup" {
   passwordless_type             = "PASSWORDLESS_TYPE_NOT_ALLOWED"
   hide_password_reset           = false
   ignore_unknown_usernames      = true
-  default_redirect_uri          = ""
+  default_redirect_uri          = "https://app.fixaverse.ru/"
   password_check_lifetime       = "240h0m0s"
   external_login_check_lifetime = "240h0m0s"
   multi_factor_check_lifetime   = "24h0m0s"
