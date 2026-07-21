@@ -86,7 +86,7 @@ jobs:
           ZITADEL_SMTP_FROM_NAME: Fixaverse
           ZITADEL_SMTP_TLS: "true"
           ZITADEL_SMTP_TEST_TO: ${{ inputs.invite_email }}
-          ZITADEL_SMTP_RECREATE: "true"
+          ZITADEL_SMTP_RECREATE: "false"
         run: |
           set -o pipefail
           chmod +x scripts/ensure-smtp.sh

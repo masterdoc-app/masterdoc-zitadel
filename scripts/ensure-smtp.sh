@@ -50,8 +50,8 @@ PY
 )"
 CODE="$(admin_curl PUT /admin/v1/policies/domain -d "$POLICY_JSON")"
 if [[ "$CODE" != "200" ]]; then
-  # already set / no change is ok for some versions
-  if ! grep -qiE 'not been changed|AlreadyExists|NO_CHANGES' /tmp/zitadel-admin-body.json; then
+  # already set / no change is ok for some versions (RU + EN)
+  if ! grep -qiE 'not been changed|AlreadyExists|NO_CHANGES|не была изменена|не изменен' /tmp/zitadel-admin-body.json; then
     echo "UpdateDomainPolicy failed ($CODE): $(cat /tmp/zitadel-admin-body.json)" >&2
     exit 1
   fi
