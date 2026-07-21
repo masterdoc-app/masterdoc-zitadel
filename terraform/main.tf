@@ -142,6 +142,9 @@ resource "zitadel_application_oidc" "web" {
   depends_on = [zitadel_project_role.roles]
 }
 
+# Instance default redirect is managed by scripts/ensure-login-local-email.sh /
+# ensure-default-redirect.sh (do not partial-merge GET→PUT — it can flip flags).
+# Org login policy: local email+password, no self-signup, redirect to app.
 resource "zitadel_login_policy" "no_self_signup" {
   org_id                        = var.zitadel_org_id
   user_login                    = true

@@ -1,0 +1,66 @@
+name: Ensure Login Local Email
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ensure-login-local-email-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: Local email+password login
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+
+      - name: Ensure login policies + email label
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          EXTRA_ORG_IDS: "382715225649971203"
+          DEFAULT_REDIRECT_URI: https://app.fixaverse.ru/
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-login-local-email.sh scripts/ensure-login-email-label.sh
+          scripts/ensure-login-local-email.sh | tee /tmp/login-out.txt
+
+      - name: Restart login UI (clear translation/settings cache)
+        env:
+          ZITADEL_DEPLOY_HOST: ${{ secrets.ZITADEL_DEPLOY_HOST }}
+          ZITADEL_DEPLOY_USER: ${{ secrets.ZITADEL_DEPLOY_USER }}
+          ZITADEL_SSH_PRIVATE_KEY: ${{ secrets.ZITADEL_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$ZITADEL_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$ZITADEL_DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${ZITADEL_DEPLOY_USER}@${ZITADEL_DEPLOY_HOST}" \
+            'docker restart zitadel-zitadel-login-1 && sleep 5 && docker inspect -f "{{.State.Health.Status}}" zitadel-zitadel-login-1'
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Login local email"
+            if [[ -f /tmp/login-out.txt ]]; then
+              echo '```'
+              cat /tmp/login-out.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
