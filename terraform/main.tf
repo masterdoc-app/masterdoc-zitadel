@@ -166,6 +166,15 @@ resource "zitadel_login_policy" "no_self_signup" {
   idps                          = []
 }
 
+# Instance default: password = min length only (demo / invite UX).
+resource "zitadel_default_password_complexity_policy" "default" {
+  min_length    = 8
+  has_uppercase = false
+  has_lowercase = false
+  has_number    = false
+  has_symbol    = false
+}
+
 output "project_id" {
   value = zitadel_project.toir.id
 }
