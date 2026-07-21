@@ -1,15 +1,15 @@
 # Expected platform invariants (source for verify suite + docs).
 # No secrets here.
+# `roles` YAML key = Zitadel project roleKey values (product feature wires).
 
 project_name: masterdoc-toir
 
 roles:
-  - admin
-  - dispatcher
-  - engineer
-  - requester
-  - reporter
-  - technologist
+  - board
+  - charts
+  - copilot
+  - equipment
+  - user_invite
 
 oidc_apps:
   - name: masterdoc-kmp-native

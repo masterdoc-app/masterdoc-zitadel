@@ -30,14 +30,14 @@ class ZitadelInvariantsTest {
     }
 
     @Test
-    fun `fails when engineer role is missing`() {
-        stubProject(roleKeys = listOf("admin", "dispatcher", "requester", "reporter"))
+    fun `fails when board feature key is missing`() {
+        stubProject(roleKeys = listOf("charts", "copilot", "equipment", "user_invite"))
         stubApps(okAppsJson())
         stubLoginPolicy(allowRegister = false)
 
         val errors = checker().verify()
 
-        assertTrue(errors.any { it.contains("missing roles") && it.contains("engineer") }, errors.toString())
+        assertTrue(errors.any { it.contains("missing roles") && it.contains("board") }, errors.toString())
     }
 
     @Test
