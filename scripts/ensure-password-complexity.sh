@@ -66,22 +66,28 @@ CODE="$(curl -sS -o /tmp/zitadel-body.json -w '%{http_code}' \
   exit 1
 }
 python3 - <<'PY'
-import json, sys
+import json, os, sys
 p = json.load(open("/tmp/zitadel-body.json")).get("policy") or {}
+
+def flag(key: str) -> bool:
+    # Admin GET may omit false booleans
+    return bool(p.get(key))
+
+want_min = os.environ.get("MIN_LENGTH", "8")
 ok = (
-  str(p.get("minLength")) == __import__("os").environ.get("MIN_LENGTH", "8")
-  and p.get("hasUppercase") is False
-  and p.get("hasLowercase") is False
-  and p.get("hasNumber") is False
-  and p.get("hasSymbol") is False
+    str(p.get("minLength")) == want_min
+    and not flag("hasUppercase")
+    and not flag("hasLowercase")
+    and not flag("hasNumber")
+    and not flag("hasSymbol")
 )
 print(
-  "verified:",
-  f"minLength={p.get('minLength')}",
-  f"upper={p.get('hasUppercase')}",
-  f"lower={p.get('hasLowercase')}",
-  f"number={p.get('hasNumber')}",
-  f"symbol={p.get('hasSymbol')}",
+    "verified:",
+    f"minLength={p.get('minLength')}",
+    f"upper={flag('hasUppercase')}",
+    f"lower={flag('hasLowercase')}",
+    f"number={flag('hasNumber')}",
+    f"symbol={flag('hasSymbol')}",
 )
 sys.exit(0 if ok else 1)
 PY
