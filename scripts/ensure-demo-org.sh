@@ -102,20 +102,49 @@ fi
 echo "DEMO_ORG_ID=$DEMO_ORG_ID"
 
 echo "==> Ensure project grant to demo org"
+find_project_grant_id() {
+  DEMO_ORG_ID="$DEMO_ORG_ID" python3 - <<'PY'
+import json, os
+org = os.environ["DEMO_ORG_ID"]
+body = json.load(open("/tmp/zitadel-body.json"))
+rows = body.get("result") or body.get("grants") or []
+for g in rows:
+    gid = g.get("id") or g.get("grantId") or ""
+    cand = [
+        g.get("grantedOrgId"),
+        g.get("grantedOrganizationId"),
+        (g.get("grantedOrg") or {}).get("id"),
+        (g.get("grantedOrganization") or {}).get("id"),
+    ]
+    if org in {c for c in cand if c}:
+        print(gid)
+        break
+PY
+}
+
 CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
-  -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+  -d "$(DEMO_ORG_ID="$DEMO_ORG_ID" python3 -c '
+import json,os
+print(json.dumps({
+  "query":{"offset":0,"limit":100,"asc":True},
+  "queries":[{"grantedOrgIdQuery":{"grantedOrgId":os.environ["DEMO_ORG_ID"]}}],
+}))
+')")"
 [[ "$CODE" == "200" ]] || {
   echo "List project grants failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
   exit 1
 }
-GRANT_ID="$(DEMO_ORG_ID="$DEMO_ORG_ID" python3 - <<'PY'
-import json, os
-org = os.environ["DEMO_ORG_ID"]
-for g in json.load(open("/tmp/zitadel-body.json")).get("result") or []:
-    if g.get("grantedOrgId") == org:
-        print(g.get("id") or ""); break
-PY
-)"
+GRANT_ID="$(find_project_grant_id)"
+if [[ -z "$GRANT_ID" ]]; then
+  # Fallback: unfiltered list (some Zitadel builds ignore grantedOrgIdQuery)
+  CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
+    -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+  [[ "$CODE" == "200" ]] || {
+    echo "List project grants failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    exit 1
+  }
+  GRANT_ID="$(find_project_grant_id)"
+fi
 
 ROLE_KEYS_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c '
 import json,os
@@ -133,7 +162,7 @@ upsert_project_grant() {
     echo "Update project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   fi
-  echo "Project grant updated $gid"
+  echo "Project grant updated $gid -> ${ROLE_KEYS_JSON}"
 }
 
 if [[ -n "$GRANT_ID" ]]; then
@@ -149,22 +178,14 @@ print(json.dumps({
 ')")"
   if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
     echo "Project grant created"
+    GRANT_ID="$(python3 -c 'import json; d=json.load(open("/tmp/zitadel-body.json")); print(d.get("id") or d.get("grantId") or "")')"
   elif [[ "$CODE" == "409" ]] || grep -qiE 'already exists' /tmp/zitadel-body.json; then
-    echo "Project grant already exists — re-search and update role keys"
+    echo "Project grant already exists — dump search body and retry locate"
+    echo "BODY=$(cat /tmp/zitadel-body.json)" >&2
     CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
       -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
-    [[ "$CODE" == "200" ]] || {
-      echo "Re-list project grants failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
-      exit 1
-    }
-    GRANT_ID="$(DEMO_ORG_ID="$DEMO_ORG_ID" python3 - <<'PY'
-import json, os
-org = os.environ["DEMO_ORG_ID"]
-for g in json.load(open("/tmp/zitadel-body.json")).get("result") or []:
-    if g.get("grantedOrgId") == org:
-        print(g.get("id") or ""); break
-PY
-)"
+    echo "SEARCH=$(cat /tmp/zitadel-body.json)" >&2
+    GRANT_ID="$(find_project_grant_id)"
     [[ -n "$GRANT_ID" ]] || {
       echo "Project grant exists but id not found after re-search" >&2
       exit 1
