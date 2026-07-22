@@ -41,6 +41,13 @@ CI: verify secrets → rsync `deploy/` → записать `.env` из secrets 
 
 Console → service user `terraform-masterdoc` → PAT → secrets `ZITADEL_TOKEN` / `ZITADEL_ORG_ID`.
 
+Для gateway admin (`/admin/users*`): PAT должен уметь в **клиентских org** (не только platform):
+
+- читать/создавать пользователей и grants (invite + list)
+- **удалять** invited users (`user.delete` / роль уровня Org User Manager или выше) — иначе revoke вернёт 502/403
+
+Platform `ZITADEL_ORG_ID` в secrets — org владельца продукта для Terraform; tenant для admin API берётся из JWT `resourceowner` / `org:id`.
+
 ## 5. Terraform platform
 
 Workflow **Terraform Apply** (`workflow_dispatch`) — project `masterdoc-toir`, feature keys (`board`, `charts`, `copilot`, `equipment`, `user_invite`), OIDC apps (`masterdoc-kmp-native`, `masterdoc-kmp-web`), login policy (no self-signup).
