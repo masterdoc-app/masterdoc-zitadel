@@ -48,11 +48,14 @@
 | Claim | Назначение |
 |-------|------------|
 | `sub` | стабильный user id во всём backend |
-| org (Zitadel org id / mapping) | текущий клиент — в docs product как `org_id` |
-| `roles` / project roles assertion | одна из пяти ролей |
+| `urn:zitadel:iam:user:resourceowner:id` | org пользователя (компания) — tenant для gateway `TenantContext` |
+| `urn:zitadel:iam:org:id` | только если в auth запрошен scope `urn:zitadel:iam:org:id:{id}` (фиксация org на логине) |
+| `roles` / project roles assertion | feature keys (`board`, `charts`, …) |
 | `email` | опционально для `GET /me` |
 
 В Terraform для OIDC apps включены `access_token_role_assertion` и `id_token_role_assertion`.
+
+**Клиент обязан** запрашивать scope `urn:zitadel:iam:user:resourceowner` вместе с `openid profile email offline_access`, иначе в access token не будет org id и admin API (`/admin/users*`) вернёт `401`. Нельзя подставить reserved claim через Action (`urn:zitadel:iam:*` игнорируется).
 
 ## Что IdP не делает
 
