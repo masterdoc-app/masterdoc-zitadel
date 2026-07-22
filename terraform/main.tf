@@ -76,7 +76,7 @@ locals {
   # Zitadel role_key values = product feature wires (see feature-service catalog).
   roles = {
     board       = "Board"
-    charts      = "Charts"
+    charts      = "ППР"
     copilot     = "Copilot"
     equipment   = "Equipment"
     user_invite = "User invite"
