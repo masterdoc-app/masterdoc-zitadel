@@ -73,13 +73,13 @@ variable "web_post_logout_redirect_uris" {
 }
 
 locals {
+  # Zitadel role_key values = product feature wires (see feature-service catalog).
   roles = {
-    admin        = "Administrator"
-    dispatcher   = "Dispatcher"
-    engineer     = "Engineer"
-    requester    = "Requester"
-    reporter     = "Reporter"
-    technologist = "Technologist"
+    board       = "Board"
+    charts      = "Charts"
+    copilot     = "Copilot"
+    equipment   = "Equipment"
+    user_invite = "User invite"
   }
 }
 

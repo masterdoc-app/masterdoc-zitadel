@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Create (or reuse) a client org, grant masterdoc-toir roles, invite a human via email.
+# Create (or reuse) a client org, grant masterdoc-toir feature keys, invite a human via email.
 #
 # Requires: ZITADEL_DOMAIN, ZITADEL_TOKEN, ZITADEL_ORG_ID (platform/owner org)
 # Optional:
 #   DEMO_ORG_NAME (default "Fixaverse Demo")
 #   INVITE_EMAIL (default mail@antonbutov.com)
 #   INVITE_GIVEN_NAME / INVITE_FAMILY_NAME
-#   INVITE_ROLE_KEYS (space-separated, default "admin")
+#   INVITE_ROLE_KEYS (space-separated feature keys, default "user_invite")
 set -euo pipefail
 
 DOMAIN="${ZITADEL_DOMAIN:?}"
@@ -16,7 +16,7 @@ DEMO_ORG_NAME="${DEMO_ORG_NAME:-Fixaverse Demo}"
 INVITE_EMAIL="${INVITE_EMAIL:-mail@antonbutov.com}"
 INVITE_GIVEN_NAME="${INVITE_GIVEN_NAME:-Anton}"
 INVITE_FAMILY_NAME="${INVITE_FAMILY_NAME:-Butov}"
-INVITE_ROLE_KEYS="${INVITE_ROLE_KEYS:-admin}"
+INVITE_ROLE_KEYS="${INVITE_ROLE_KEYS:-user_invite}"
 INVITE_APP_NAME="${INVITE_APP_NAME:-Fixaverse}"
 INVITE_LANG="${INVITE_LANG:-ru}"
 PROJECT_NAME="masterdoc-toir"
@@ -120,9 +120,9 @@ PY
 ROLE_KEYS_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c '
 import json,os
 keys=[k for k in os.environ["INVITE_ROLE_KEYS"].split() if k]
-# grant all product roles so demo can assign any later
-all_roles=["admin","dispatcher","engineer","requester","reporter","technologist"]
-print(json.dumps(sorted(set(all_roles)|set(keys))))
+# grant all product feature keys so demo can assign any later
+all_features=["board","charts","copilot","equipment","user_invite"]
+print(json.dumps(sorted(set(all_features)|set(keys))))
 ')"
 
 if [[ -n "$GRANT_ID" ]]; then

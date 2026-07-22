@@ -24,6 +24,7 @@ class ZitadelLiveInvariantsIT {
 
         // Live Management API shapes differ by Zitadel version; smoke that client + expected load.
         val expected = ExpectedLoader.load(Path.of("../terraform/expected.yaml"))
-        assertTrue(expected.roles.contains("engineer"))
+        assertTrue(expected.roles.contains("board"))
+        assertTrue(expected.roles.contains("user_invite"))
     }
 }

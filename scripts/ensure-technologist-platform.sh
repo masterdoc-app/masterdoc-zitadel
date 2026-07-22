@@ -88,13 +88,12 @@ ensure_role() {
   fi
 }
 
-echo "==> Ensure roles"
-ensure_role admin Administrator
-ensure_role dispatcher Dispatcher
-ensure_role engineer Engineer
-ensure_role requester Requester
-ensure_role reporter Reporter
-ensure_role technologist Technologist
+echo "==> Ensure feature keys (Zitadel project roleKey)"
+ensure_role board Board
+ensure_role charts Charts
+ensure_role copilot Copilot
+ensure_role equipment Equipment
+ensure_role user_invite "User invite"
 
 echo "==> Find/create OIDC apps"
 APPS="$(curl_json POST "/management/v1/projects/${PROJECT_ID}/apps/_search" \
@@ -285,7 +284,7 @@ print(json.dumps({
 fi
 echo "USER_ID=$USER_ID"
 
-echo "==> Ensure user grant includes technologist"
+echo "==> Ensure user grant includes charts+equipment"
 GRANTS="$(curl_json POST /management/v1/users/grants/_search -d "$(python3 -c "
 import json
 print(json.dumps({
@@ -310,7 +309,8 @@ else:
 if [[ -n "$GRANT_ID" ]]; then
   ROLE_JSON="$(EXISTING_ROLES="$EXISTING_ROLES" python3 -c '
 import json,os
-roles=set(os.environ.get("EXISTING_ROLES","").split()); roles.discard(""); roles.add("technologist")
+roles=set(os.environ.get("EXISTING_ROLES","").split()); roles.discard("")
+roles.update(["charts", "equipment"])
 print(json.dumps({"roleKeys":sorted(roles)}))
 ')"
   CODE="$(http_code_body PUT "/management/v1/users/${USER_ID}/grants/${GRANT_ID}" -d "$ROLE_JSON")"
@@ -324,12 +324,12 @@ print(json.dumps({"roleKeys":sorted(roles)}))
   fi
 else
   CODE="$(http_code_body POST "/management/v1/users/${USER_ID}/grants" \
-    -d "{\"projectId\":\"${PROJECT_ID}\",\"roleKeys\":[\"technologist\"]}")"
+    -d "{\"projectId\":\"${PROJECT_ID}\",\"roleKeys\":[\"charts\",\"equipment\"]}")"
   [[ "$CODE" == "200" || "$CODE" == "201" ]] || {
     echo "Grant create failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   }
-  echo "Created grant with technologist"
+  echo "Created grant with charts+equipment"
 fi
 
 echo "WEB_CLIENT_ID=${CLIENT_ID}"
