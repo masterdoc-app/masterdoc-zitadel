@@ -125,14 +125,19 @@ all_features=["board","charts","copilot","equipment","user_invite"]
 print(json.dumps(sorted(set(all_features)|set(keys))))
 ')"
 
-if [[ -n "$GRANT_ID" ]]; then
-  CODE="$(mgmt_curl "$PLATFORM_ORG_ID" PUT "/management/v1/projects/${PROJECT_ID}/grants/${GRANT_ID}" \
+upsert_project_grant() {
+  local gid="$1"
+  CODE="$(mgmt_curl "$PLATFORM_ORG_ID" PUT "/management/v1/projects/${PROJECT_ID}/grants/${gid}" \
     -d "{\"roleKeys\": ${ROLE_KEYS_JSON}}")"
   if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed|не измен|не был изменён|NO_CHANGES|COMMAND-Rs8fy' /tmp/zitadel-body.json; then
     echo "Update project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   fi
-  echo "Project grant updated $GRANT_ID"
+  echo "Project grant updated $gid"
+}
+
+if [[ -n "$GRANT_ID" ]]; then
+  upsert_project_grant "$GRANT_ID"
 else
   CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants" \
     -d "$(DEMO_ORG_ID="$DEMO_ORG_ID" ROLE_KEYS_JSON="$ROLE_KEYS_JSON" python3 -c '
@@ -145,7 +150,26 @@ print(json.dumps({
   if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
     echo "Project grant created"
   elif [[ "$CODE" == "409" ]] || grep -qiE 'already exists' /tmp/zitadel-body.json; then
-    echo "Project grant already exists (race/search miss) — OK"
+    echo "Project grant already exists — re-search and update role keys"
+    CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
+      -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+    [[ "$CODE" == "200" ]] || {
+      echo "Re-list project grants failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+      exit 1
+    }
+    GRANT_ID="$(DEMO_ORG_ID="$DEMO_ORG_ID" python3 - <<'PY'
+import json, os
+org = os.environ["DEMO_ORG_ID"]
+for g in json.load(open("/tmp/zitadel-body.json")).get("result") or []:
+    if g.get("grantedOrgId") == org:
+        print(g.get("id") or ""); break
+PY
+)"
+    [[ -n "$GRANT_ID" ]] || {
+      echo "Project grant exists but id not found after re-search" >&2
+      exit 1
+    }
+    upsert_project_grant "$GRANT_ID"
   else
     echo "Add project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
@@ -215,23 +239,6 @@ print(json.dumps({
 fi
 echo "USER_ID=$USER_ID"
 
-echo "==> Send invite code (applicationName=${INVITE_APP_NAME})"
-CODE="$(mgmt_curl "$DEMO_ORG_ID" POST "/v2/users/${USER_ID}/invite_code" -d "$(
-  INVITE_APP_NAME="$INVITE_APP_NAME" python3 -c '
-import json,os
-print(json.dumps({
-  "sendCode": {
-    "applicationName": os.environ["INVITE_APP_NAME"],
-  },
-}))
-')")"
-if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
-  echo "INVITE_SENT=yes"
-else
-  echo "Invite send failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
-  exit 1
-fi
-
 echo "==> Ensure user project grant (${INVITE_ROLE_KEYS})"
 CODE="$(mgmt_curl "$DEMO_ORG_ID" POST /management/v1/users/grants/_search -d "$(python3 -c "
 import json
@@ -244,7 +251,14 @@ print(json.dumps({
 }))
 ")" )"
 UG_ID="$(python3 -c 'import json; r=json.load(open("/tmp/zitadel-body.json")).get("result") or []; print(r[0].get("id","") if r else "")')"
-USER_ROLES_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c 'import json,os; print(json.dumps([k for k in os.environ["INVITE_ROLE_KEYS"].split() if k]))')"
+# Merge requested keys with any existing grant keys so we never wipe other features.
+EXISTING_KEYS="$(python3 -c 'import json; r=json.load(open("/tmp/zitadel-body.json")).get("result") or []; print(" ".join((r[0].get("roleKeys") or []) if r else []))')"
+USER_ROLES_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" EXISTING_KEYS="$EXISTING_KEYS" python3 -c '
+import json,os
+keys=set(k for k in os.environ.get("EXISTING_KEYS","").split() if k)
+keys.update(k for k in os.environ.get("INVITE_ROLE_KEYS","").split() if k)
+print(json.dumps(sorted(keys)))
+')"
 
 if [[ -n "$UG_ID" ]]; then
   CODE="$(mgmt_curl "$DEMO_ORG_ID" PUT "/management/v1/users/${USER_ID}/grants/${UG_ID}" \
@@ -253,6 +267,7 @@ if [[ -n "$UG_ID" ]]; then
     echo "Update user grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   fi
+  echo "Updated user grant $UG_ID -> ${USER_ROLES_JSON}"
 else
   CODE="$(mgmt_curl "$DEMO_ORG_ID" POST "/management/v1/users/${USER_ID}/grants" \
     -d "{\"projectId\":\"${PROJECT_ID}\",\"roleKeys\": ${USER_ROLES_JSON}}")"
@@ -260,6 +275,26 @@ else
     echo "Create user grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   }
+  echo "Created user grant -> ${USER_ROLES_JSON}"
+fi
+
+echo "==> Send invite code (applicationName=${INVITE_APP_NAME})"
+CODE="$(mgmt_curl "$DEMO_ORG_ID" POST "/v2/users/${USER_ID}/invite_code" -d "$(
+  INVITE_APP_NAME="$INVITE_APP_NAME" python3 -c '
+import json,os
+print(json.dumps({
+  "sendCode": {
+    "applicationName": os.environ["INVITE_APP_NAME"],
+  },
+}))
+')")"
+if [[ "$CODE" == "200" || "$CODE" == "201" ]]; then
+  echo "INVITE_SENT=yes"
+elif grep -qiE 'уже инициализирован|already.*(init|active)|COMMAND-EF34g' /tmp/zitadel-body.json; then
+  echo "INVITE_SENT=skipped (user already initialized)"
+else
+  echo "Invite send failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+  exit 1
 fi
 
 echo "DEMO_ORG_NAME=${DEMO_ORG_NAME}"
