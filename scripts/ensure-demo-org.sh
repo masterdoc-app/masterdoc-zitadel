@@ -103,48 +103,72 @@ echo "DEMO_ORG_ID=$DEMO_ORG_ID"
 
 echo "==> Ensure project grant to demo org"
 find_project_grant_id() {
-  DEMO_ORG_ID="$DEMO_ORG_ID" python3 - <<'PY'
+  DEMO_ORG_ID="$DEMO_ORG_ID" PROJECT_ID="$PROJECT_ID" python3 - <<'PY'
 import json, os
 org = os.environ["DEMO_ORG_ID"]
+project = os.environ["PROJECT_ID"]
 body = json.load(open("/tmp/zitadel-body.json"))
-rows = body.get("result") or body.get("grants") or []
+rows = body.get("result") or body.get("grants") or body.get("projectGrants") or []
 for g in rows:
-    gid = g.get("id") or g.get("grantId") or ""
+    gid = g.get("grantId") or g.get("id") or ""
+    pid = g.get("projectId") or project
     cand = [
         g.get("grantedOrgId"),
         g.get("grantedOrganizationId"),
         (g.get("grantedOrg") or {}).get("id"),
         (g.get("grantedOrganization") or {}).get("id"),
     ]
+    if pid and pid != project:
+        continue
     if org in {c for c in cand if c}:
         print(gid)
-        break
+        raise SystemExit
+matches = []
+for g in rows:
+    gid = g.get("grantId") or g.get("id") or ""
+    pid = g.get("projectId") or ""
+    if (not pid or pid == project) and gid:
+        matches.append(gid)
+if len(matches) == 1:
+    print(matches[0])
 PY
 }
 
-CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
-  -d "$(DEMO_ORG_ID="$DEMO_ORG_ID" python3 -c '
+search_project_grants() {
+  # ListAllProjectGrants — supports grantedOrgIdQuery; per-project _search does not.
+  CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST /management/v1/projectgrants/_search \
+    -d "$(DEMO_ORG_ID="$DEMO_ORG_ID" PROJECT_ID="$PROJECT_ID" python3 -c '
 import json,os
 print(json.dumps({
   "query":{"offset":0,"limit":100,"asc":True},
-  "queries":[{"grantedOrgIdQuery":{"grantedOrgId":os.environ["DEMO_ORG_ID"]}}],
+  "queries":[
+    {"projectIdQuery":{"projectId":os.environ["PROJECT_ID"]}},
+    {"grantedOrgIdQuery":{"grantedOrgId":os.environ["DEMO_ORG_ID"]}},
+  ],
 }))
 ')")"
-[[ "$CODE" == "200" ]] || {
-  echo "List project grants failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
-  exit 1
-}
-GRANT_ID="$(find_project_grant_id)"
-if [[ -z "$GRANT_ID" ]]; then
-  # Fallback: unfiltered list (some Zitadel builds ignore grantedOrgIdQuery)
-  CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
-    -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+  if [[ "$CODE" != "200" ]]; then
+    echo "WARN: projectgrants/_search failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
+      -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+  fi
+  if [[ "$CODE" != "200" ]]; then
+    # Legacy misplaced grants: search under granted org header (see ZITADEL advisory 10014)
+    CODE="$(mgmt_curl "$DEMO_ORG_ID" POST /management/v1/projectgrants/_search \
+      -d "$(PROJECT_ID="$PROJECT_ID" python3 -c '
+import json,os
+print(json.dumps({
+  "query":{"offset":0,"limit":100,"asc":True},
+  "queries":[{"projectIdQuery":{"projectId":os.environ["PROJECT_ID"]}}],
+}))
+')")"
+  fi
   [[ "$CODE" == "200" ]] || {
     echo "List project grants failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   }
-  GRANT_ID="$(find_project_grant_id)"
-fi
+  echo "SEARCH=$(cat /tmp/zitadel-body.json)"
+}
 
 ROLE_KEYS_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c '
 import json,os
@@ -155,18 +179,22 @@ print(json.dumps(sorted(set(all_features)|set(keys))))
 ')"
 
 upsert_project_grant() {
-  local gid="$1"
-  CODE="$(mgmt_curl "$PLATFORM_ORG_ID" PUT "/management/v1/projects/${PROJECT_ID}/grants/${gid}" \
+  local gid="$1" org_header="$2"
+  CODE="$(mgmt_curl "$org_header" PUT "/management/v1/projects/${PROJECT_ID}/grants/${gid}" \
     -d "{\"roleKeys\": ${ROLE_KEYS_JSON}}")"
   if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed|не измен|не был изменён|NO_CHANGES|COMMAND-Rs8fy' /tmp/zitadel-body.json; then
     echo "Update project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   fi
-  echo "Project grant updated $gid -> ${ROLE_KEYS_JSON}"
+  echo "Project grant updated $gid (org=$org_header) -> ${ROLE_KEYS_JSON}"
 }
 
+search_project_grants
+GRANT_ID="$(find_project_grant_id)"
+GRANT_ORG_HEADER="$PLATFORM_ORG_ID"
+
 if [[ -n "$GRANT_ID" ]]; then
-  upsert_project_grant "$GRANT_ID"
+  upsert_project_grant "$GRANT_ID" "$GRANT_ORG_HEADER"
 else
   CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants" \
     -d "$(DEMO_ORG_ID="$DEMO_ORG_ID" ROLE_KEYS_JSON="$ROLE_KEYS_JSON" python3 -c '
@@ -180,17 +208,22 @@ print(json.dumps({
     echo "Project grant created"
     GRANT_ID="$(python3 -c 'import json; d=json.load(open("/tmp/zitadel-body.json")); print(d.get("id") or d.get("grantId") or "")')"
   elif [[ "$CODE" == "409" ]] || grep -qiE 'already exists' /tmp/zitadel-body.json; then
-    echo "Project grant already exists — dump search body and retry locate"
-    echo "BODY=$(cat /tmp/zitadel-body.json)" >&2
-    CODE="$(mgmt_curl "$PLATFORM_ORG_ID" POST "/management/v1/projects/${PROJECT_ID}/grants/_search" \
-      -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
-    echo "SEARCH=$(cat /tmp/zitadel-body.json)" >&2
+    echo "Project grant already exists — retry locate (incl. granted-org header)"
+    echo "BODY=$(cat /tmp/zitadel-body.json)"
+    search_project_grants
     GRANT_ID="$(find_project_grant_id)"
+    if [[ -z "$GRANT_ID" ]]; then
+      CODE="$(mgmt_curl "$DEMO_ORG_ID" POST /management/v1/projectgrants/_search \
+        -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+      echo "SEARCH_DEMO=$(cat /tmp/zitadel-body.json)"
+      GRANT_ID="$(find_project_grant_id)"
+      GRANT_ORG_HEADER="$DEMO_ORG_ID"
+    fi
     [[ -n "$GRANT_ID" ]] || {
       echo "Project grant exists but id not found after re-search" >&2
       exit 1
     }
-    upsert_project_grant "$GRANT_ID"
+    upsert_project_grant "$GRANT_ID" "$GRANT_ORG_HEADER"
   else
     echo "Add project grant failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
