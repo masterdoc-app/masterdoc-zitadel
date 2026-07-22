@@ -284,7 +284,10 @@ print(json.dumps({
 fi
 echo "USER_ID=$USER_ID"
 
-echo "==> Ensure user grant includes charts+equipment"
+echo "==> Ensure user grant includes product feature wires"
+# After features-only deploy, legacy keys like admin are ignored by feature-service.
+# Grant must include catalog wires (at least user_invite for Users admin UI).
+REQUIRED_FEATURES=(charts equipment user_invite)
 GRANTS="$(curl_json POST /management/v1/users/grants/_search -d "$(python3 -c "
 import json
 print(json.dumps({
@@ -307,10 +310,11 @@ else:
 ')"
 
 if [[ -n "$GRANT_ID" ]]; then
-  ROLE_JSON="$(EXISTING_ROLES="$EXISTING_ROLES" python3 -c '
+  ROLE_JSON="$(EXISTING_ROLES="$EXISTING_ROLES" REQUIRED_FEATURES="${REQUIRED_FEATURES[*]}" python3 -c '
 import json,os
 roles=set(os.environ.get("EXISTING_ROLES","").split()); roles.discard("")
-roles.update(["charts", "equipment"])
+roles.update(os.environ.get("REQUIRED_FEATURES","").split())
+roles.discard("")
 print(json.dumps({"roleKeys":sorted(roles)}))
 ')"
   CODE="$(http_code_body PUT "/management/v1/users/${USER_ID}/grants/${GRANT_ID}" -d "$ROLE_JSON")"
@@ -323,13 +327,17 @@ print(json.dumps({"roleKeys":sorted(roles)}))
     exit 1
   fi
 else
-  CODE="$(http_code_body POST "/management/v1/users/${USER_ID}/grants" \
-    -d "{\"projectId\":\"${PROJECT_ID}\",\"roleKeys\":[\"charts\",\"equipment\"]}")"
+  ROLE_JSON="$(REQUIRED_FEATURES="${REQUIRED_FEATURES[*]}" python3 -c '
+import json,os
+keys=[k for k in os.environ.get("REQUIRED_FEATURES","").split() if k]
+print(json.dumps({"projectId":"'"${PROJECT_ID}"'","roleKeys":keys}))
+')"
+  CODE="$(http_code_body POST "/management/v1/users/${USER_ID}/grants" -d "$ROLE_JSON")"
   [[ "$CODE" == "200" || "$CODE" == "201" ]] || {
     echo "Grant create failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
     exit 1
   }
-  echo "Created grant with charts+equipment"
+  echo "Created grant with ${REQUIRED_FEATURES[*]}"
 fi
 
 echo "WEB_CLIENT_ID=${CLIENT_ID}"
