@@ -1,0 +1,91 @@
+name: Ensure Smoke Org
+
+on:
+  workflow_dispatch:
+    inputs:
+      smoke_org_name:
+        description: Smoke client organization name (not Demo)
+        required: true
+        default: Fixaverse Smoke
+      invite_email:
+        description: Email to invite into the smoke org (Butov inbox OK)
+        required: true
+        default: mail@antonbutov.com
+
+concurrency:
+  group: ensure-smoke-org-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: Fixaverse Smoke org
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+
+      - name: Ensure smoke org + invite
+        id: smoke
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          DEMO_ORG_NAME: ${{ inputs.smoke_org_name }}
+          INVITE_EMAIL: ${{ inputs.invite_email }}
+          INVITE_GIVEN_NAME: Anton
+          INVITE_FAMILY_NAME: Butov
+          INVITE_ROLE_KEYS: board charts copilot equipment user_invite
+          INVITE_APP_NAME: Fixaverse
+          INVITE_LANG: ru
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-demo-org.sh
+          scripts/ensure-demo-org.sh | tee /tmp/smoke-out.txt
+          ORG_ID="$(sed -n 's/^DEMO_ORG_ID=//p' /tmp/smoke-out.txt | tail -n1)"
+          test -n "$ORG_ID" || { echo "No DEMO_ORG_ID in script output"; exit 1; }
+          echo "smoke_org_id=$ORG_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Login policy (password reset) on smoke org
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          EXTRA_ORG_IDS: ${{ steps.smoke.outputs.smoke_org_id }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-login-policy-password-reset.sh
+          scripts/ensure-login-policy-password-reset.sh | tee /tmp/login-policy-out.txt
+
+      - name: Grant mgmt PAT ORG_USER_MANAGER on smoke org
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          EXTRA_ORG_IDS: ${{ steps.smoke.outputs.smoke_org_id }}
+          MGMT_ORG_ROLES: ORG_USER_MANAGER
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-mgmt-org-member.sh
+          scripts/ensure-mgmt-org-member.sh | tee /tmp/mgmt-member-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Fixaverse Smoke org"
+            if [[ -f /tmp/smoke-out.txt ]]; then
+              echo "- org: \`$(sed -n 's/^DEMO_ORG_NAME=//p' /tmp/smoke-out.txt | tail -n1)\` (\`$(sed -n 's/^DEMO_ORG_ID=//p' /tmp/smoke-out.txt | tail -n1)\`)"
+              echo "- invite: \`$(sed -n 's/^INVITE_EMAIL=//p' /tmp/smoke-out.txt | tail -n1)\` sent=\`$(sed -n 's/^INVITE_SENT=//p' /tmp/smoke-out.txt | tail -n1)\`"
+            fi
+            echo "- demo org unchanged: \`Fixaverse Demo\` (\`382715225649971203\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
