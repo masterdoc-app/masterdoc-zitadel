@@ -8,9 +8,9 @@ on:
         required: true
         default: Fixaverse Smoke
       invite_email:
-        description: Email to invite into the smoke org (Butov inbox OK)
+        description: Smoke user email (plus-address → Butov inbox; not Demo's bare mail@)
         required: true
-        default: mail@antonbutov.com
+        default: mail+smoke@antonbutov.com
 
 concurrency:
   group: ensure-smoke-org-${{ github.ref }}
@@ -88,4 +88,5 @@ jobs:
               echo "- invite: \`$(sed -n 's/^INVITE_EMAIL=//p' /tmp/smoke-out.txt | tail -n1)\` sent=\`$(sed -n 's/^INVITE_SENT=//p' /tmp/smoke-out.txt | tail -n1)\`"
             fi
             echo "- demo org unchanged: \`Fixaverse Demo\` (\`382715225649971203\`)"
+            echo "- note: smoke user is plus-address (instance-unique emails); same Butov inbox"
           } >> "$GITHUB_STEP_SUMMARY"

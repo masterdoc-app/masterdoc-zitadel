@@ -76,8 +76,10 @@ Demo org id (reference): `382715225649971203`.
 Workflow **Ensure Smoke Org** (`workflow_dispatch`):
 
 1. Создаёт (или переиспользует) org **Fixaverse Smoke**, project grant `masterdoc-toir` (все feature keys).
-2. Invite на `mail@antonbutov.com` (Anton Butov) — тот же inbox, плюс-адресация `mail+smoke-<ts>@antonbutov.com` для одноразовых invite.
+2. Invite на `mail+smoke@antonbutov.com` (Anton Butov) — плюс-адресация в тот же inbox; bare `mail@antonbutov.com` занят Demo (emails instance-unique).
 3. Login policy (password reset) + `ORG_USER_MANAGER` для mgmt PAT на этой org.
+
+Smoke org id (после первого ensure): `383177088934346755`.
 
 Secrets: те же `ZITADEL_DOMAIN` / `ZITADEL_TOKEN` / `ZITADEL_ORG_ID` (SMTP уже из §6).
 

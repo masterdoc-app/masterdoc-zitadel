@@ -262,15 +262,60 @@ print(json.dumps({
   },
 }))
 ')")"
-  [[ "$CODE" == "200" || "$CODE" == "201" ]] || {
-    echo "Create human failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
-    exit 1
-  }
-  USER_ID="$(python3 -c 'import json; d=json.load(open("/tmp/zitadel-body.json")); print(d.get("userId") or d.get("id") or "")')"
-  [[ -n "$USER_ID" ]] || {
-    echo "No user id: $(cat /tmp/zitadel-body.json)" >&2
-    exit 1
-  }
+  if [[ "$CODE" == "409" ]] || grep -qiE 'уже существует|already exists|V3-DKcYh' /tmp/zitadel-body.json; then
+    # Email is instance-unique: user may live in another org. Try instance-wide search.
+    echo "WARN: create human 409 — search instance-wide for ${INVITE_EMAIL}"
+    CODE="$(admin_curl POST /v2/users -d "$(INVITE_EMAIL="$INVITE_EMAIL" python3 -c '
+import json,os
+print(json.dumps({
+  "query":{"offset":0,"limit":20,"asc":True},
+  "queries":[{"emailQuery":{"emailAddress":os.environ["INVITE_EMAIL"],"method":"TEXT_QUERY_METHOD_EQUALS"}}]
+}))
+')")"
+    if [[ "$CODE" != "200" ]]; then
+      CODE="$(admin_curl POST /admin/v1/users/_search -d "$(INVITE_EMAIL="$INVITE_EMAIL" python3 -c '
+import json,os
+print(json.dumps({
+  "query":{"offset":0,"limit":20,"asc":True},
+  "queries":[{"emailQuery":{"emailAddress":os.environ["INVITE_EMAIL"],"method":"TEXT_QUERY_METHOD_EQUALS"}}]
+}))
+')")"
+    fi
+    USER_ID="$(python3 -c '
+import json
+d=json.load(open("/tmp/zitadel-body.json"))
+rows=d.get("result") or d.get("users") or []
+print(rows[0].get("userId") or rows[0].get("id") or "" if rows else "")
+' 2>/dev/null || true)"
+    OWNER="$(python3 -c '
+import json
+d=json.load(open("/tmp/zitadel-body.json"))
+rows=d.get("result") or d.get("users") or []
+if not rows: print(""); raise SystemExit
+u=rows[0]
+print(u.get("details",{}).get("resourceOwner") or u.get("resourceOwner") or u.get("orgId") or "")
+' 2>/dev/null || true)"
+    if [[ -n "$USER_ID" && "$OWNER" != "$DEMO_ORG_ID" ]]; then
+      echo "Create human failed: ${INVITE_EMAIL} already belongs to org ${OWNER:-unknown}, not ${DEMO_ORG_ID}." >&2
+      echo "Use a plus-address for this org (e.g. mail+smoke@antonbutov.com) — Zitadel emails are instance-unique." >&2
+      exit 1
+    fi
+    [[ -n "$USER_ID" ]] || {
+      echo "Create human failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+      exit 1
+    }
+    echo "Resolved existing USER_ID=$USER_ID in this org after 409"
+  else
+    [[ "$CODE" == "200" || "$CODE" == "201" ]] || {
+      echo "Create human failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+      exit 1
+    }
+    USER_ID="$(python3 -c 'import json; d=json.load(open("/tmp/zitadel-body.json")); print(d.get("userId") or d.get("id") or "")')"
+    [[ -n "$USER_ID" ]] || {
+      echo "No user id: $(cat /tmp/zitadel-body.json)" >&2
+      exit 1
+    }
+  fi
 else
   echo "User exists USER_ID=$USER_ID — set preferredLanguage=${INVITE_LANG} (v1 profile)"
   CODE="$(mgmt_curl "$DEMO_ORG_ID" PUT "/management/v1/users/${USER_ID}/profile" -d "$(

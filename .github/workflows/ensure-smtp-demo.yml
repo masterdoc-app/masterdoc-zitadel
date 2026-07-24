@@ -89,7 +89,7 @@ jobs:
           ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
           ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
           ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
-          EXTRA_ORG_IDS: "382715225649971203"
+          EXTRA_ORG_IDS: "382715225649971203 383177088934346755"
         run: |
           set -o pipefail
           chmod +x scripts/ensure-login-policy-password-reset.sh
