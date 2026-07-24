@@ -6,7 +6,7 @@ on:
       extra_org_ids:
         description: Space-separated client org ids (gateway tenant orgs)
         required: true
-        default: "382715225649971203"
+        default: "382715225649971203 383177088934346755"
       roles:
         description: Org member roles for the PAT user
         required: true
