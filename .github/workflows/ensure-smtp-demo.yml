@@ -120,7 +120,7 @@ jobs:
           ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
           DEMO_ORG_NAME: ${{ inputs.demo_org_name }}
           INVITE_EMAIL: ${{ inputs.invite_email }}
-          INVITE_ROLE_KEYS: board charts copilot equipment admin
+          INVITE_ROLE_KEYS: board charts copilot equipment admin black_box
           INVITE_APP_NAME: Fixaverse
           INVITE_LANG: ru
         run: |
