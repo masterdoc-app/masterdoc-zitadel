@@ -299,13 +299,13 @@ print(json.dumps({
 ")" || echo '{"result":[]}')"
 
 eval "$(printf '%s' "$GRANTS" | python3 -c '
-import json,sys
+import json,sys,shlex
 r=json.load(sys.stdin).get("result") or []
 if not r:
     print("GRANT_ID="); print("EXISTING_ROLES=")
 else:
-    print("GRANT_ID="+(r[0].get("id") or ""))
-    print("EXISTING_ROLES="+" ".join(r[0].get("roleKeys") or []))
+    print("GRANT_ID="+shlex.quote(r[0].get("id") or ""))
+    print("EXISTING_ROLES="+shlex.quote(" ".join(r[0].get("roleKeys") or [])))
 ')"
 
 if [[ -n "$GRANT_ID" ]]; then
