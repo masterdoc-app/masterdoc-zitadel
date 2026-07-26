@@ -9,7 +9,7 @@ roles:
   - charts
   - copilot
   - equipment
-  - user_invite
+  - admin
 
 oidc_apps:
   - name: masterdoc-kmp-native

@@ -93,7 +93,7 @@ ensure_role board Board
 ensure_role charts ППР
 ensure_role copilot Copilot
 ensure_role equipment Equipment
-ensure_role user_invite "User invite"
+ensure_role admin "Admin"
 
 echo "==> Find/create OIDC apps"
 APPS="$(curl_json POST "/management/v1/projects/${PROJECT_ID}/apps/_search" \
@@ -285,9 +285,8 @@ fi
 echo "USER_ID=$USER_ID"
 
 echo "==> Ensure user grant includes product feature wires"
-# After features-only deploy, legacy keys like admin are ignored by feature-service.
-# Grant must include catalog wires (at least user_invite for Users admin UI).
-REQUIRED_FEATURES=(charts equipment user_invite)
+# Grant must include catalog wires (at least admin for Админ UI).
+REQUIRED_FEATURES=(charts equipment admin)
 GRANTS="$(curl_json POST /management/v1/users/grants/_search -d "$(python3 -c "
 import json
 print(json.dumps({

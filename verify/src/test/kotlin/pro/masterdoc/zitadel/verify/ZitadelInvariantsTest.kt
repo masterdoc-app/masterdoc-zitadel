@@ -31,7 +31,7 @@ class ZitadelInvariantsTest {
 
     @Test
     fun `fails when board feature key is missing`() {
-        stubProject(roleKeys = listOf("charts", "copilot", "equipment", "user_invite"))
+        stubProject(roleKeys = listOf("charts", "copilot", "equipment", "admin"))
         stubApps(okAppsJson())
         stubLoginPolicy(allowRegister = false)
 

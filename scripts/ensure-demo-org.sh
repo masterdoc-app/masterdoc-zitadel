@@ -6,7 +6,7 @@
 #   DEMO_ORG_NAME (default "Fixaverse Demo")
 #   INVITE_EMAIL (default mail@antonbutov.com)
 #   INVITE_GIVEN_NAME / INVITE_FAMILY_NAME
-#   INVITE_ROLE_KEYS (space-separated feature keys, default "user_invite")
+#   INVITE_ROLE_KEYS (space-separated feature keys, default "admin")
 set -euo pipefail
 
 DOMAIN="${ZITADEL_DOMAIN:?}"
@@ -16,7 +16,7 @@ DEMO_ORG_NAME="${DEMO_ORG_NAME:-Fixaverse Demo}"
 INVITE_EMAIL="${INVITE_EMAIL:-mail@antonbutov.com}"
 INVITE_GIVEN_NAME="${INVITE_GIVEN_NAME:-Anton}"
 INVITE_FAMILY_NAME="${INVITE_FAMILY_NAME:-Butov}"
-INVITE_ROLE_KEYS="${INVITE_ROLE_KEYS:-user_invite}"
+INVITE_ROLE_KEYS="${INVITE_ROLE_KEYS:-admin}"
 INVITE_APP_NAME="${INVITE_APP_NAME:-Fixaverse}"
 INVITE_LANG="${INVITE_LANG:-ru}"
 PROJECT_NAME="masterdoc-toir"
@@ -174,7 +174,7 @@ ROLE_KEYS_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c '
 import json,os
 keys=[k for k in os.environ["INVITE_ROLE_KEYS"].split() if k]
 # grant all product feature keys so demo can assign any later
-all_features=["board","charts","copilot","equipment","user_invite"]
+all_features=["board","charts","copilot","equipment","admin"]
 print(json.dumps(sorted(set(all_features)|set(keys))))
 ')"
 
