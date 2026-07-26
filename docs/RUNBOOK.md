@@ -50,7 +50,7 @@ Platform `ZITADEL_ORG_ID` в secrets — org владельца продукта
 
 ## 5. Terraform platform
 
-Workflow **Terraform Apply** (`workflow_dispatch`) — project `masterdoc-toir`, feature keys (`board`, `charts`, `copilot`, `equipment`, `admin`), OIDC apps (`masterdoc-kmp-native`, `masterdoc-kmp-web`), login policy (no self-signup).
+Workflow **Terraform Apply** (`workflow_dispatch`) — project `masterdoc-toir`, feature keys (`board`, `charts`, `copilot`, `equipment`, `admin`, `black_box`), OIDC apps (`masterdoc-kmp-native`, `masterdoc-kmp-web`), login policy (no self-signup).
 
 Secrets: `ZITADEL_DOMAIN`, `ZITADEL_TOKEN`, `ZITADEL_ORG_ID`.
 
