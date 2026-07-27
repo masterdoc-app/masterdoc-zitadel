@@ -41,7 +41,7 @@
 2. Invite user (email + роль) → пользователь задаёт пароль.
 3. KMP: OIDC Authorization Code + **PKCE** → `access_token` + `refresh_token`.
 4. API (будущий gateway): Bearer JWT → verify issuer / audience / JWKS → `sub`, org, `roles`.
-5. Доступ к Site — **не** в Zitadel (`user_site_access` в future `access-service`).
+5. Доступ к Site/Asset для инженера — **не** в Zitadel. MVP: `user-scopes` в **catalog-service** (привязка к Site и/или Asset pins). Отдельный `access-service` — опциональный вынос позже.
 
 ## Claims (минимум)
 
@@ -59,7 +59,7 @@
 
 ## Что IdP не делает
 
-- не хранит `user_site_access`, `org_settings`, feature flags продукта;
+- не хранит `user-scopes` / Site–Asset membership, `org_settings`, feature flags продукта;
 - не выдаёт собственные session id вместо OIDC;
 - не заменяет Spring Boot gateway.
 
