@@ -174,7 +174,7 @@ ROLE_KEYS_JSON="$(INVITE_ROLE_KEYS="$INVITE_ROLE_KEYS" python3 -c '
 import json,os
 keys=[k for k in os.environ["INVITE_ROLE_KEYS"].split() if k]
 # grant all product feature keys so demo can assign any later
-all_features=["board","charts","equipment","admin","black_box"]
+all_features=["board","charts","equipment","admin","black_box","engineer"]
 print(json.dumps(sorted(set(all_features)|set(keys))))
 ')"
 
