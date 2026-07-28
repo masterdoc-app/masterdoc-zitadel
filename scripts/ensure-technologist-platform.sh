@@ -91,7 +91,6 @@ ensure_role() {
 echo "==> Ensure feature keys (Zitadel project roleKey)"
 ensure_role board Board
 ensure_role charts ППР
-ensure_role copilot Copilot
 ensure_role equipment Equipment
 ensure_role admin "Admin"
 ensure_role black_box "Black box"
