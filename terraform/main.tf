@@ -79,6 +79,7 @@ locals {
     black_box = "Black box"
     board     = "Board"
     charts    = "ППР"
+    engineer  = "Engineer"
     equipment = "Equipment"
   }
 }

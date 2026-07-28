@@ -74,7 +74,7 @@ IP VPS, SSH, domain, PAT, DB passwords, `ZITADEL_MASTERKEY` — **только G
 | Путь | Назначение |
 |------|------------|
 | [`deploy/`](../deploy/) | Docker Compose (официальный pack Zitadel) + nginx example |
-| [`terraform/`](../terraform/) | platform: project, 5 roles, native+web OIDC, login policy |
+| [`terraform/`](../terraform/) | platform: project, 6 roles, native+web OIDC, login policy |
 | [`verify/`](../verify/) | контрактные инварианты (TDD unit + optional live) |
 | CI | на каждый push/PR: `terraform validate` + unit tests |
 
