@@ -7,7 +7,6 @@ project_name: masterdoc-toir
 roles:
   - board
   - charts
-  - copilot
   - equipment
   - admin
   - black_box
