@@ -81,6 +81,7 @@ locals {
     charts    = "ППР"
     engineer  = "Engineer"
     equipment = "Equipment"
+    map       = "Карта"
     tickets   = "Заявки"
   }
 }
