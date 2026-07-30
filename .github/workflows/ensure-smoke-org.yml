@@ -45,7 +45,7 @@ jobs:
           INVITE_EMAIL: ${{ inputs.invite_email }}
           INVITE_GIVEN_NAME: Anton
           INVITE_FAMILY_NAME: Butov
-          INVITE_ROLE_KEYS: board charts equipment admin black_box engineer
+          INVITE_ROLE_KEYS: board charts equipment admin black_box engineer tickets
           INVITE_APP_NAME: Fixaverse
           INVITE_LANG: ru
         run: |

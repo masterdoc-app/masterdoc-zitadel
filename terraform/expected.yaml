@@ -11,6 +11,7 @@ roles:
   - equipment
   - admin
   - black_box
+  - tickets
 
 oidc_apps:
   - name: masterdoc-kmp-native
