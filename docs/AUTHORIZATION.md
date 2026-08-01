@@ -19,7 +19,7 @@
 | **1 Instance** (self-host) | весь SaaS-продукт |
 | **Organization** | один клиент (компания) |
 | **User** в org | сотрудник клиента |
-| **Project role** | `admin` \| `dispatcher` \| `engineer` \| `requester` \| `reporter` |
+| **Project role** | product feature keys: `admin` \| `ai` \| `black_box` \| `board` \| `charts` \| `engineer` \| `equipment` \| `map` \| `tickets` |
 | **OIDC Application(s)** | клиенты KMP/Web — **общие на продукт**, не по app на org |
 
 Клиент **не** передаёт свой instance. Логин идёт на ваш домен IdP; tenant = org claim в JWT.
@@ -74,7 +74,7 @@ IP VPS, SSH, domain, PAT, DB passwords, `ZITADEL_MASTERKEY` — **только G
 | Путь | Назначение |
 |------|------------|
 | [`deploy/`](../deploy/) | Docker Compose (официальный pack Zitadel) + nginx example |
-| [`terraform/`](../terraform/) | platform: project, 6 roles, native+web OIDC, login policy |
+| [`terraform/`](../terraform/) | platform: project, feature roles, native+web OIDC, login policy |
 | [`verify/`](../verify/) | контрактные инварианты (TDD unit + optional live) |
 | CI | на каждый push/PR: `terraform validate` + unit tests |
 

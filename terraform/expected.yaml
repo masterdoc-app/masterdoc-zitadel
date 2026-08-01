@@ -5,6 +5,7 @@
 project_name: masterdoc-toir
 
 roles:
+  - ai
   - board
   - charts
   - engineer
