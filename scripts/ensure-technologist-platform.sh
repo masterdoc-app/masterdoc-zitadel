@@ -324,7 +324,7 @@ print(json.dumps({"roleKeys":sorted(roles)}))
   CODE="$(http_code_body PUT "/management/v1/users/${USER_ID}/grants/${GRANT_ID}" -d "$ROLE_JSON")"
   if [[ "$CODE" == "200" ]]; then
     echo "Updated grant $GRANT_ID -> $ROLE_JSON"
-  elif grep -q 'User grant has not been changed' /tmp/zitadel-body.json 2>/dev/null; then
+  elif grep -Eq 'User grant has not been changed|Допуск пользователя не был изменён|COMMAND-Rs8fy' /tmp/zitadel-body.json 2>/dev/null; then
     echo "Grant already up to date ($GRANT_ID)"
   else
     echo "Grant update failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
