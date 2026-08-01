@@ -83,6 +83,7 @@ locals {
     engineer  = "Engineer"
     equipment = "Equipment"
     map       = "Карта"
+    reports   = "Отчёты"
     tickets   = "Заявки"
   }
 }
