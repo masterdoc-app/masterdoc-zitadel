@@ -5,10 +5,13 @@
 project_name: masterdoc-toir
 
 roles:
+  - ai
   - board
   - charts
   - engineer
   - equipment
+  - map
+  - reports
   - admin
   - black_box
   - tickets
