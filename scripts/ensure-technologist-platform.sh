@@ -94,6 +94,11 @@ ensure_role charts ППР
 ensure_role equipment Equipment
 ensure_role admin "Admin"
 ensure_role black_box "Black box"
+ensure_role engineer Engineer
+ensure_role map "Карта"
+ensure_role tickets "Заявки"
+ensure_role ai "ИИ"
+ensure_role reports "Отчёты"
 
 echo "==> Find/create OIDC apps"
 APPS="$(curl_json POST "/management/v1/projects/${PROJECT_ID}/apps/_search" \
