@@ -1,0 +1,51 @@
+name: List Org Users
+
+on:
+  workflow_dispatch:
+    inputs:
+      org_id:
+        description: Zitadel organization id
+        required: true
+        default: "382715225649971203"
+      delete_user_ids:
+        description: Optional space-separated user ids to delete
+        required: false
+        default: ""
+      delete_emails:
+        description: Optional space-separated emails to delete
+        required: false
+        default: ""
+
+concurrency:
+  group: list-org-users-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List / optional delete
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ inputs.org_id }}
+          DELETE_USER_IDS: ${{ inputs.delete_user_ids }}
+          DELETE_EMAILS: ${{ inputs.delete_emails }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/list-org-users.sh
+          scripts/list-org-users.sh | tee /tmp/list-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Org users"
+            echo '```'
+            cat /tmp/list-out.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
