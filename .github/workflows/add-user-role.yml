@@ -1,0 +1,57 @@
+name: Add User Role
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_org_id:
+        description: Client org id (leave empty if using org name)
+        required: false
+        default: "382715225649971203"
+      target_org_name:
+        description: Optional org name (overrides id when set)
+        required: false
+        default: ""
+      target_email:
+        description: User email
+        required: true
+        default: mail+rustore@antonbutov.com
+      add_role:
+        description: Project role key to add (tickets = Заявки)
+        required: true
+        default: tickets
+
+concurrency:
+  group: add-user-role-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add role to user grant
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          TARGET_ORG_ID: ${{ inputs.target_org_id }}
+          TARGET_ORG_NAME: ${{ inputs.target_org_name }}
+          TARGET_EMAIL: ${{ inputs.target_email }}
+          ADD_ROLE: ${{ inputs.add_role }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/add-user-role.sh
+          scripts/add-user-role.sh | tee /tmp/add-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Add user role"
+            echo '```'
+            cat /tmp/add-out.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
