@@ -1,0 +1,52 @@
+name: Remove User Role
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_org_id:
+        description: Client org id (Demo / Smoke / …)
+        required: true
+        default: "382715225649971203"
+      target_email:
+        description: User email
+        required: true
+        default: mail@antonbutov.com
+      remove_role:
+        description: Project role key to remove (e.g. engineer = Мои заявки)
+        required: true
+        default: engineer
+
+concurrency:
+  group: remove-user-role-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove role from user grant
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          TARGET_ORG_ID: ${{ inputs.target_org_id }}
+          TARGET_EMAIL: ${{ inputs.target_email }}
+          REMOVE_ROLE: ${{ inputs.remove_role }}
+        run: |
+          set -o pipefail
+          chmod +x scripts/remove-user-role.sh
+          scripts/remove-user-role.sh | tee /tmp/remove-out.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Remove user role"
+            echo '```'
+            cat /tmp/remove-out.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
