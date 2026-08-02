@@ -77,6 +77,7 @@ locals {
   roles = {
     admin     = "Admin"
     ai        = "ИИ"
+    asset_qr  = "QR оборудования"
     black_box = "Black box"
     board     = "Board"
     charts    = "ППР"
