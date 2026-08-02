@@ -15,6 +15,18 @@ on:
         description: Optional space-separated emails to delete
         required: false
         default: ""
+      rename_email:
+        description: Optional email whose profile to rename
+        required: false
+        default: ""
+      rename_given:
+        description: New given name (with rename_email)
+        required: false
+        default: "RuStore"
+      rename_family:
+        description: New family name (with rename_email)
+        required: false
+        default: "Инженер"
 
 concurrency:
   group: list-org-users-${{ github.ref }}
@@ -35,6 +47,9 @@ jobs:
           ORG_ID: ${{ inputs.org_id }}
           DELETE_USER_IDS: ${{ inputs.delete_user_ids }}
           DELETE_EMAILS: ${{ inputs.delete_emails }}
+          RENAME_EMAIL: ${{ inputs.rename_email }}
+          RENAME_GIVEN: ${{ inputs.rename_given }}
+          RENAME_FAMILY: ${{ inputs.rename_family }}
         run: |
           set -o pipefail
           chmod +x scripts/list-org-users.sh

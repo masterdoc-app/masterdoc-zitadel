@@ -6,6 +6,7 @@
 #   ORG_ID (default: Fixaverse Demo 382715225649971203)
 #   DELETE_USER_IDS — space-separated user ids to delete
 #   DELETE_EMAILS — space-separated emails to delete (resolved in org)
+#   RENAME_EMAIL / RENAME_GIVEN / RENAME_FAMILY — update human profile display name
 set -euo pipefail
 
 DOMAIN="${ZITADEL_DOMAIN:?}"
@@ -44,6 +45,44 @@ for u in rows:
     fn = profile.get("lastName") or profile.get("familyName") or ""
     print(f"USER id={u.get('id')} email={email} name={gn} {fn} state={u.get('state')} type={u.get('userName') or u.get('type')}")
 PY
+
+if [[ -n "${RENAME_EMAIL:-}" ]]; then
+  echo "==> Rename ${RENAME_EMAIL}"
+  CODE="$(mgmt_curl POST /management/v1/users/_search -d "$(EMAIL="$RENAME_EMAIL" python3 -c '
+import json,os
+print(json.dumps({
+  "query":{"offset":0,"limit":20,"asc":True},
+  "queries":[{"emailQuery":{"emailAddress":os.environ["EMAIL"],"method":"TEXT_QUERY_METHOD_EQUALS"}}]
+}))
+')")"
+  [[ "$CODE" == "200" ]] || {
+    echo "Search for rename failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    exit 1
+  }
+  uid="$(python3 -c 'import json; r=json.load(open("/tmp/zitadel-body.json")).get("result") or []; print(r[0]["id"] if r else "")')"
+  [[ -n "$uid" ]] || {
+    echo "RENAME_EMAIL not found: ${RENAME_EMAIL}" >&2
+    exit 1
+  }
+  GN="${RENAME_GIVEN:-RuStore}"
+  FN="${RENAME_FAMILY:-Инженер}"
+  CODE="$(mgmt_curl PUT "/management/v1/users/${uid}/profile" -d "$(
+    GN="$GN" FN="$FN" python3 -c '
+import json,os
+gn=os.environ["GN"]; fn=os.environ["FN"]
+print(json.dumps({
+  "firstName": gn,
+  "lastName": fn,
+  "displayName": f"{gn} {fn}",
+  "preferredLanguage": "ru",
+}))
+')")"
+  if [[ "$CODE" != "200" ]] && ! grep -qiE 'not been changed|не измен|NO_CHANGES' /tmp/zitadel-body.json; then
+    echo "Rename failed ($CODE): $(cat /tmp/zitadel-body.json)" >&2
+    exit 1
+  fi
+  echo "RENAMED id=$uid -> ${GN} ${FN}"
+fi
 
 if [[ -n "${DELETE_EMAILS:-}" ]]; then
   echo "==> Resolve DELETE_EMAILS"
