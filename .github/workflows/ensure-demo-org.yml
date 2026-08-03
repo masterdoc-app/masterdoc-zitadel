@@ -1,0 +1,58 @@
+name: Ensure Demo Org
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo_org_name:
+        description: Demo client organization name
+        required: true
+        default: Fixaverse Demo
+      invite_email:
+        description: Existing Demo user (merge roles; invite skipped if already active)
+        required: true
+        default: mail@antonbutov.com
+      invite_role_keys:
+        description: Space-separated role keys to merge onto the user grant
+        required: true
+        default: admin asset_qr
+
+concurrency:
+  group: ensure-demo-org-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ensure:
+    name: Fixaverse Demo org grant
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        env:
+          DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+        run: |
+          test -n "$DOMAIN" || { echo "Add secret ZITADEL_DOMAIN"; exit 1; }
+          test -n "$TOKEN" || { echo "Add secret ZITADEL_TOKEN"; exit 1; }
+          test -n "$ORG_ID" || { echo "Add secret ZITADEL_ORG_ID"; exit 1; }
+
+      - name: Ensure demo project grant includes asset_qr + merge user roles
+        env:
+          ZITADEL_DOMAIN: ${{ secrets.ZITADEL_DOMAIN }}
+          ZITADEL_TOKEN: ${{ secrets.ZITADEL_TOKEN }}
+          ZITADEL_ORG_ID: ${{ secrets.ZITADEL_ORG_ID }}
+          DEMO_ORG_NAME: ${{ inputs.demo_org_name }}
+          INVITE_EMAIL: ${{ inputs.invite_email }}
+          INVITE_GIVEN_NAME: Anton
+          INVITE_FAMILY_NAME: Butov
+          INVITE_ROLE_KEYS: ${{ inputs.invite_role_keys }}
+          INVITE_APP_NAME: Fixaverse
+          INVITE_LANG: ru
+        run: |
+          set -o pipefail
+          chmod +x scripts/ensure-demo-org.sh
+          scripts/ensure-demo-org.sh | tee /tmp/demo-out.txt
+          rg -n 'Project grant|Updated user grant|Created user grant|USER_ID=|BEFORE|asset_qr|OK|DEMO_ORG_ID' /tmp/demo-out.txt || true
