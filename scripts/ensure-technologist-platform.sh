@@ -206,6 +206,18 @@ if [[ -z "${NATIVE_APP_ID:-}" ]]; then
   fi
 fi
 
+APPS="$(curl_json POST "/management/v1/projects/${PROJECT_ID}/apps/_search" -d '{"query":{"offset":0,"limit":100,"asc":true}}')"
+NATIVE_CLIENT_ID="$(printf '%s' "$APPS" | python3 -c '
+import json,sys
+for a in (json.load(sys.stdin).get("result") or []):
+    if a.get("name")=="masterdoc-kmp-native":
+        print((a.get("oidcConfig") or {}).get("clientId") or ""); break
+')"
+if [[ -z "$NATIVE_CLIENT_ID" ]]; then
+  echo "Native OIDC client ID not found" >&2
+  exit 1
+fi
+
 echo "==> Find user ${GRANT_USER_EMAIL}"
 USERS="$(curl_json POST /v2/users -d "$(GRANT_USER_EMAIL="$GRANT_USER_EMAIL" python3 -c '
 import json,os
@@ -346,4 +358,5 @@ print(json.dumps({"projectId":"'"${PROJECT_ID}"'","roleKeys":keys}))
 fi
 
 echo "WEB_CLIENT_ID=${CLIENT_ID}"
+echo "NATIVE_CLIENT_ID=${NATIVE_CLIENT_ID}"
 echo "OK"

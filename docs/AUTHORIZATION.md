@@ -10,7 +10,8 @@
 | Hosting | **Self-host на инфраструктуре в РФ** (Docker Compose) — не Zitadel Cloud |
 | Почему не Cloud | Регионы Cloud: US / EU / CH / AU; **России нет** — не подходит для ПДн (152-ФЗ) |
 | Лицензия OSS | AGPL; при необходимости commercial license позже |
-| Пароли | Только в Zitadel; свой backend **не** хранит пароли и **не** делает `POST /auth/login` |
+| Пароли | Только в Zitadel; gateway **не** хранит пароли |
+| Android login | BFF `POST /auth/login` на gateway → Zitadel Session API → OIDC tokens; пароль проходит транзитом, не сохраняется |
 
 ## Multi-tenant
 
