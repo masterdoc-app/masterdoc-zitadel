@@ -86,6 +86,7 @@ locals {
     map       = "Карта"
     reports   = "Отчёты"
     tickets   = "Заявки"
+    warehouse = "Склад"
   }
 }
 

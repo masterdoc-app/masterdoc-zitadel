@@ -100,6 +100,7 @@ ensure_role tickets "Заявки"
 ensure_role ai "ИИ"
 ensure_role reports "Отчёты"
 ensure_role asset_qr "QR оборудования"
+ensure_role warehouse "Склад"
 
 echo "==> Find/create OIDC apps"
 APPS="$(curl_json POST "/management/v1/projects/${PROJECT_ID}/apps/_search" \

@@ -15,6 +15,7 @@ roles:
   - admin
   - black_box
   - tickets
+  - warehouse
 
 oidc_apps:
   - name: masterdoc-kmp-native
